@@ -33,7 +33,27 @@ func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
 }
 
 func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
-	// TODO
+	// Default case, if there is only two nodes but neither one is connected.
+	if dhtNode.successor == nil && dhtNode.predecessor == nil{
+		// Set the dhtNodes successor to the new node, and change predecessor
+		dhtNode.predecessor = newDHTNode
+		dhtNode.successor = newDHTNode
+		newDHTNode.predecessor = dhtNode
+		newDHTNode.successor = dhtNode
+	}else {
+		if(between([]byte(dhtNode.nodeId),[]byte(dhtNode.successor.nodeId),[]byte(newDHTNode.nodeId))){
+			// It should be between dhtNode and dhtNode successor.
+			newDHTNode.successor = dhtNode.successor
+			newDHTNode.predecessor = dhtNode
+			// Update the node1 successor, and node 2 predecessor.
+			dhtNode.successor.predecessor = newDHTNode
+			dhtNode.successor = newDHTNode
+		}else {
+			// Recursively call add to ring with next value
+			dhtNode.successor.addToRing(newDHTNode)
+		}
+	}
+
 }
 
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
