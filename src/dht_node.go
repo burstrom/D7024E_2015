@@ -5,6 +5,8 @@ type Contact struct {
 	port string
 }
 
+// go test -test.run <functionsnamn>
+
 type DHTNode struct {
 	nodeId      string
 	successor   *DHTNode
