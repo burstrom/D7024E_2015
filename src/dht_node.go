@@ -1,4 +1,5 @@
 package dht
+import "fmt"
 
 type Contact struct {
 	ip   string
@@ -53,12 +54,13 @@ func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 			dhtNode.successor.addToRing(newDHTNode)
 		}
 	}
-
+	fmt.Println(dhtNode.predecessor.nodeId +" <- predecessor |"+ dhtNode.nodeId + "| successor -> " + dhtNode.successor.nodeId)
 }
 
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
 	// TODO
 	return dhtNode // XXX This is not correct obviously
+
 }
 
 func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
@@ -72,7 +74,12 @@ func (dhtNode *DHTNode) responsible(key string) bool {
 }
 
 func (dhtNode *DHTNode) printRing() {
-	// TODO
+	activeNode := dhtNode.successor
+	fmt.Println(dhtNode.nodeId)
+	for activeNode != dhtNode{
+		fmt.Println(activeNode.nodeId)
+		activeNode = activeNode.successor
+	}
 }
 
 func (dhtNode *DHTNode) testCalcFingers(m int, bits int) {
