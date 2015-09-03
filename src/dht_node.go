@@ -59,16 +59,31 @@ func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 }
 
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
-	// If the node is responsible for the given key
-	if(dhtNode.responsible(key)){
+	if (dhtNode.responsible(key)) {
 		return dhtNode
 	}
 	return dhtNode.successor.lookup(key)
 }
 
 func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
-	// TODO
-	return dhtNode // XXX This is not correct obviously
+	// If the node or it's successor is responsible for the key?
+	if(dhtNode.responsible(key)) {
+		return dhtNode
+	}
+	if(dhtNode.successor.responsible(key)){
+		return dhtNode.successor
+	}
+	// Is the key within the interval node1 - node1.fingers[last] ?
+	if(between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-1].nodeId), []byte(key))){
+		// if the key is within the interval, decrease the value k, check if the key still is in the interval?
+		for k := 1; k <= bits; k++ {
+			if (!between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers) - k].nodeId), []byte(key))) {
+				return dhtNode.acceleratedLookupUsingFingers(key)
+			}
+		}
+	}
+	// If the key isn't within the interval, it must be within another interval calculated from the last finger of node1
+	return dhtNode.fingers[len(dhtNode.fingers)-1].acceleratedLookupUsingFingers(key)
 }
 
 func (dhtNode *DHTNode) responsible(key string) bool {

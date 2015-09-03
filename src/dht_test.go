@@ -41,14 +41,20 @@ func TestDHT1(t *testing.T) {
 	node3b.testCalcFingers(3, 3)
 
 	// Added by luxx
-	node0b.lookup("05")
+	//node0b.printFingers()
 
-	node0b.printFingers()
+	//fmt.Println("Normal:" + node0b.lookup("05").nodeId)
+	fmt.Println("Accel:" + node0b.acceleratedLookupUsingFingers("05").nodeId)
+	//node0b.acceleratedLookupUsingFingers("05")
+	//node4b.printFingers()
+	//
 
-	fmt.Println("#### STOP ####")
 
-	node0b.printRing()
-	printAllFingers(node0b, node0b)
+
+	//node0b.printRing()
+	//printAllFingers(node0b, node0b)
+
+
 }
 
 func TestDHT2(t *testing.T) {

@@ -9,11 +9,11 @@ import (
 	"encoding/hex"
 )
 
-const bits = 3
+const bits = 4
 
-func distance(a, b []byte, bits int) *big.Int {
+func distance(a, b []byte, bitsvar int) *big.Int {
 	var ring big.Int
-	ring.Exp(big.NewInt(2), big.NewInt(int64(bits)), nil)
+	ring.Exp(big.NewInt(2), big.NewInt(int64(bitsvar)), nil)
 
 	var a_int, b_int big.Int
 	(&a_int).SetBytes(a)
