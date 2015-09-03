@@ -8,6 +8,8 @@ type Contact struct {
 
 // go test -test.run <functionsnamn>
 
+var counter = 0
+
 type DHTNode struct {
 	nodeId      string
 	successor   *DHTNode
@@ -67,6 +69,8 @@ func (dhtNode *DHTNode) lookup(key string) *DHTNode {
 
 func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 	// If the node or it's successor is responsible for the key?
+	fmt.Print(dhtNode.nodeId + ", ")
+	counter = counter +1
 	if(dhtNode.responsible(key)) {
 		return dhtNode
 	}
@@ -78,7 +82,7 @@ func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 		// if the key is within the interval, decrease the value k, check if the key still is in the interval?
 		for k := 1; k <= bits; k++ {
 			if (!between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers) - k].nodeId), []byte(key))) {
-				return dhtNode.acceleratedLookupUsingFingers(key)
+				return dhtNode.fingers[len(dhtNode.fingers)-k].acceleratedLookupUsingFingers(key)
 			}
 		}
 	}

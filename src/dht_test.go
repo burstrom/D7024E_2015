@@ -44,6 +44,7 @@ func TestDHT1(t *testing.T) {
 	//node0b.printFingers()
 
 	//fmt.Println("Normal:" + node0b.lookup("05").nodeId)
+	fmt.Println("Crash imminent:")
 	fmt.Println("Accel:" + node0b.acceleratedLookupUsingFingers("05").nodeId)
 	//node0b.acceleratedLookupUsingFingers("05")
 	//node4b.printFingers()
