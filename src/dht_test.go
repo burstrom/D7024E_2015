@@ -42,6 +42,13 @@ func TestDHT1(t *testing.T) {
 
 	// Added by luxx
 	node0b.lookup("05")
+
+	node0b.printFingers()
+
+	fmt.Println("#### STOP ####")
+
+	node0b.printRing()
+	printAllFingers(node0b, node0b)
 }
 
 func TestDHT2(t *testing.T) {

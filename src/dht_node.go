@@ -13,6 +13,7 @@ type DHTNode struct {
 	successor   *DHTNode
 	predecessor *DHTNode
 	contact     Contact
+	fingers [bits]*DHTNode
 }
 
 func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
@@ -54,17 +55,14 @@ func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 			dhtNode.successor.addToRing(newDHTNode)
 		}
 	}
-	//fmt.Println(dhtNode.predecessor.nodeId +" <- predecessor |"+ dhtNode.nodeId + "| successor -> " + dhtNode.successor.nodeId)
+	stabalizeRing(dhtNode,dhtNode)
 }
 
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
-	fmt.Print("Node "+ dhtNode.nodeId +".responsible?:" + key)
-	// If the key string is
+	// If the node is responsible for the given key
 	if(dhtNode.responsible(key)){
-		fmt.Println(" TRUE")
 		return dhtNode
 	}
-	fmt.Println(" FALSE")
 	return dhtNode.successor.lookup(key)
 }
 
@@ -106,3 +104,19 @@ func (dhtNode *DHTNode) testCalcFingers(m int, bits int) {
 	dist := distance(idBytes, fingerSuccessorBytes, bits)
 	fmt.Println("distance     " + dist.String()) */
 }
+
+
+func (dhtNode *DHTNode) printFingers(){
+	fmt.Print("#"+dhtNode.nodeId+ " :> ")
+	for k:=0; k < len(dhtNode.fingers); k++{
+		fmt.Print(dhtNode.fingers[k].nodeId+" ")
+	}
+	fmt.Println()
+}
+// nodeXX.calcFinger
+/*func (dhtNode *DHTNode) printFinger(n []byte, k int, m int) (string []byte){
+
+
+
+	return dhtNode
+}*/
