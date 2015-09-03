@@ -5,3 +5,6 @@ The workflow/planning will be logged in the wiki. Each objective has their own m
 Each issue which is labeled "Task" is connected to a milestone. These are the tasks that are needed to be implemented and finished.
 
 On the Wiki there are also be worklogs.
+
+Sprint planning:
+https://huboard.com/burstrom/D7024E_2015
