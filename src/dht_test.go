@@ -39,6 +39,9 @@ func TestDHT1(t *testing.T) {
 	node3b.testCalcFingers(1, 3)
 	node3b.testCalcFingers(2, 3)
 	node3b.testCalcFingers(3, 3)
+
+	// Added by luxx
+	node0b.lookup("05")
 }
 
 func TestDHT2(t *testing.T) {

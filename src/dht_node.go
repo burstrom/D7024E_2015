@@ -54,13 +54,18 @@ func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 			dhtNode.successor.addToRing(newDHTNode)
 		}
 	}
-	fmt.Println(dhtNode.predecessor.nodeId +" <- predecessor |"+ dhtNode.nodeId + "| successor -> " + dhtNode.successor.nodeId)
+	//fmt.Println(dhtNode.predecessor.nodeId +" <- predecessor |"+ dhtNode.nodeId + "| successor -> " + dhtNode.successor.nodeId)
 }
 
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
-	// TODO
-	return dhtNode // XXX This is not correct obviously
-
+	fmt.Print("Node "+ dhtNode.nodeId +".responsible?:" + key)
+	// If the key string is
+	if(dhtNode.responsible(key)){
+		fmt.Println(" TRUE")
+		return dhtNode
+	}
+	fmt.Println(" FALSE")
+	return dhtNode.successor.lookup(key)
 }
 
 func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
@@ -69,17 +74,26 @@ func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 }
 
 func (dhtNode *DHTNode) responsible(key string) bool {
-	// TODO
+	// Is the key the same key as the node?
+	if(dhtNode.nodeId == key){
+		return true
+	}
+	if(dhtNode.predecessor.nodeId == key){
+		return false
+	}
+	// Is the key value between
+	return between([]byte(dhtNode.predecessor.nodeId),[]byte(dhtNode.nodeId),[]byte(key))
 	return false
 }
 
 func (dhtNode *DHTNode) printRing() {
 	activeNode := dhtNode.successor
-	fmt.Println(dhtNode.nodeId)
+	fmt.Print(dhtNode.nodeId + " ")
 	for activeNode != dhtNode{
-		fmt.Println(activeNode.nodeId)
+		fmt.Print(activeNode.nodeId + " ")
 		activeNode = activeNode.successor
 	}
+	fmt.Println()
 }
 
 func (dhtNode *DHTNode) testCalcFingers(m int, bits int) {
