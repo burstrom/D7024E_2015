@@ -8,3 +8,5 @@ On the Wiki there are also be worklogs.
 
 Sprint planning:
 https://huboard.com/burstrom/D7024E_2015
+
+[![Build Status](http://luxxorina.luxxor.se:8888/buildStatus/icon?job=D7024E-Distributedsomething)](http://luxxorina.luxxor.se:8888/job/D7024E-Distributedsomething)
