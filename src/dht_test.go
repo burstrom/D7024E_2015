@@ -44,7 +44,7 @@ func TestDHT1(t *testing.T) {
 	//node0b.printFingers()
 
 	//fmt.Println("Normal:" + node0b.lookup("05").nodeId)
-	fmt.Println("Crash imminent:")
+	fmt.Println("Lookup test:")
 	fmt.Println("Accel:" + node0b.acceleratedLookupUsingFingers("05").nodeId)
 	//node0b.acceleratedLookupUsingFingers("05")
 	//node4b.printFingers()
@@ -73,10 +73,6 @@ func TestDHT2(t *testing.T) {
 	key2 := "87adb987ebbd55db2c5309fd4b23203450ab0083"
 	key3 := "74475501523a71c34f945ae4e87d571c2c57f6f3"
 
-	fmt.Println("TEST: " + node1.lookup(key1).nodeId + " is responsible for " + key1)
-	fmt.Println("TEST: " + node1.lookup(key2).nodeId + " is responsible for " + key2)
-	fmt.Println("TEST: " + node1.lookup(key3).nodeId + " is responsible for " + key3)
-
 	node1.addToRing(node2)
 	node1.addToRing(node3)
 	node1.addToRing(node4)
@@ -85,6 +81,26 @@ func TestDHT2(t *testing.T) {
 	node3.addToRing(node7)
 	node3.addToRing(node8)
 	node7.addToRing(node9)
+
+	n1_lookup := node1.lookup(key1)
+	n1_lookupacc := node1.acceleratedLookupUsingFingers(key1)
+
+	n2_lookup := node2.lookup(key1)
+	n2_lookupacc := node2.acceleratedLookupUsingFingers(key2)
+
+	n3_lookup := node1.lookup(key3)
+	n3_lookupacc := node1.acceleratedLookupUsingFingers(key3)
+
+	fmt.Println("\nTesting, comparing normal lookup and accelerated")
+	fmt.Println("TEST: norm\t" + n1_lookup.nodeId + " is responsible for " + key1)
+	fmt.Println("TEST: acc\t" + n1_lookupacc.nodeId + " is responsible for " + key1)
+
+	fmt.Println("TEST: norm\t" + n2_lookup.nodeId + " is responsible for " + key2)
+	fmt.Println("TEST: acc\t" + n2_lookupacc.nodeId + " is responsible for " + key2)
+
+	fmt.Println("TEST: norm\t" + n3_lookup.nodeId + " is responsible for " + key3)
+	fmt.Println("TEST: acc\t" + n3_lookupacc.nodeId + " is responsible for " + key3)
+
 
 	fmt.Println("-> ring structure")
 	node1.printRing()
@@ -97,4 +113,8 @@ func TestDHT2(t *testing.T) {
 
 	nodeForKey3 := node1.lookup(key3)
 	fmt.Println("dht node " + nodeForKey3.nodeId + " running at " + nodeForKey3.contact.ip + ":" + nodeForKey3.contact.port + " is responsible for " + key3)
+
+
+
+
 }
