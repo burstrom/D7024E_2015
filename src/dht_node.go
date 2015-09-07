@@ -19,10 +19,11 @@ type DHTNode struct {
 }
 
 func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
+	// Defines the node, and adds the tuple values of IP and Port.
 	dhtNode := new(DHTNode)
 	dhtNode.contact.ip = ip
 	dhtNode.contact.port = port
-
+	//No ID? Let's generate one.
 	if nodeId == nil {
 		genNodeId := generateNodeId()
 		dhtNode.nodeId = genNodeId
@@ -61,6 +62,7 @@ func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 }
 
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
+	//Linear lookup function, go through everynode until responsible is found
 	if (dhtNode.responsible(key)) {
 		return dhtNode
 	}
@@ -69,6 +71,7 @@ func (dhtNode *DHTNode) lookup(key string) *DHTNode {
 
 func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 	// If the node or it's successor is responsible for the key?
+	// Uses fingers to achieve a logarithmic lookup instead of linear.
 	fmt.Print(dhtNode.nodeId + ", ")
 	counter = counter +1
 	if(dhtNode.responsible(key)) {
@@ -103,6 +106,7 @@ func (dhtNode *DHTNode) responsible(key string) bool {
 	return false
 }
 
+//Prints the ring with the different nodes
 func (dhtNode *DHTNode) printRing() {
 	activeNode := dhtNode.successor
 	fmt.Print(dhtNode.nodeId + " ")
@@ -114,7 +118,8 @@ func (dhtNode *DHTNode) printRing() {
 }
 
 func (dhtNode *DHTNode) testCalcFingers(m int, bits int) {
-	/* idBytes, _ := hex.DecodeString(dhtNode.nodeId)
+	/* Test to see how it compares with the other method (without fingers)
+	idBytes, _ := hex.DecodeString(dhtNode.nodeId)
 	fingerHex, _ := calcFinger(idBytes, m, bits)
 	fingerSuccessor := dhtNode.lookup(fingerHex)
 	fingerSuccessorBytes, _ := hex.DecodeString(fingerSuccessor.nodeId)
