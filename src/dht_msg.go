@@ -6,16 +6,19 @@ import ("net"
 )
 
 type DHTMsg struct {
-	Key string `json:"key"`
-	Src	string `json:"src"`
-	Dst string `json:"dst"`
+	key string `json:"key"`
+	src string `json:"src"`
+	dst string `json:"dst"`
 	// Other?
-	Bytes string `json:"bytes"`
+	stopNode string `json:"stopNode"`
+
+	bytes string `json:"bytes"`
 }
 
 type Transport struct {
 	node *DHTNode
 	bindAdress string
+	queue chan *DHTMsg
 }
 
 func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport{
@@ -27,14 +30,15 @@ func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport{
 
 func CreateMsg(key string, src string, dst string, bytes string) *DHTMsg{
 	dhtMsg := &DHTMsg{}
-	dhtMsg.Key = key
-	dhtMsg.Src = src
-	dhtMsg.Dst = dst
-	dhtMsg.Bytes = bytes
+	dhtMsg.key = key
+	dhtMsg.src = src
+	dhtMsg.dst = dst
+	dhtMsg.bytes = bytes
 	return dhtMsg
 }
 
 func (transport *Transport) listen() {
+	fmt.Println("Started listening : " + transport.bindAdress)
 	udpAddr, err := net.ResolveUDPAddr("udp", transport.bindAdress)
 	conn, err := net.ListenUDP("udp", udpAddr)
 	defer conn.Close()
@@ -42,7 +46,7 @@ func (transport *Transport) listen() {
 		fmt.Println(err.Error())
 	}
 	dec := json.NewDecoder(conn)
-	fmt.Println("Started listening : " + transport.bindAdress)
+
 	for{
 		msg := DHTMsg{}
 		err = dec.Decode(&msg)
@@ -50,20 +54,21 @@ func (transport *Transport) listen() {
 		if err != nil{
 			fmt.Println(err.Error())
 		}
-		fmt.Println(transport.node.nodeId+":> from:" + msg.Src + " to: " + msg.Dst)
+		transport.queue <- &msg
+		fmt.Println(transport.node.nodeId+":> from:" + msg.src + " to: " + msg.dst)
 		//fmt.Println(msg.Bytes + " " + "")
 	}
 }
 
 func (transport *Transport) send(msg *DHTMsg){
-	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
+	udpAddr, err := net.ResolveUDPAddr("udp", msg.dst)
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	defer conn.Close()
 	if err != nil{
 		fmt.Println(err.Error())
 	}
 	res, _ := json.Marshal(msg)
-	_, err = conn.Write(res) // wat?
+	_, err = conn.Write(res)
 
 	// Todo: JSON Marshalling golang
 

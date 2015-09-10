@@ -12,22 +12,33 @@ func TestNet1(t *testing.T){
 	id0 := "00"
 	id1 := "01"
 	id2 := "02"
-	/*id3 := "03"
+	id3 := "03"
 	id4 := "04"
 	id5 := "05"
 	id6 := "06"
-	id7 := "07"*/
+	id7 := "07"
 	node0 := makeDHTNode(&id0, "localhost", "1111")
 	node1 := makeDHTNode(&id1, "localhost", "1112")
 	node2 := makeDHTNode(&id2, "localhost", "1113")
-	wg.Add(2)
+	node3 := makeDHTNode(&id3, "localhost", "1114")
+	node4 := makeDHTNode(&id4, "localhost", "1115")
+	node5 := makeDHTNode(&id5, "localhost", "1116")
+	node6 := makeDHTNode(&id6, "localhost", "1117")
+	node7 := makeDHTNode(&id7, "localhost", "1118")
+	wg.Add(7)
 	go node0.startServer(&wg)
+	go node1.startServer(&wg)
 	go node2.startServer(&wg)
+	go node3.startServer(&wg)
+	go node4.startServer(&wg)
+	go node5.startServer(&wg)
+	go node6.startServer(&wg)
 	wg.Wait()
 
-	go node0.transport.send(CreateMsg("bajs","localhost:1111","localhost:1112","grejs"))
-	node1.transport.listen()
-	//key string, src string, dst string, bytes string
+	//CreateMsg(key string, src string, dst string, bytes string)
+	go node0.transport.send(CreateMsg("bajs","localhost:1111","localhost:1112","skitkul"))
+	node7.transport.listen()
+
 }
 
 func TestDHT1(t *testing.T) {
