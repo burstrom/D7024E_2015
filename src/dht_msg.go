@@ -12,7 +12,7 @@ type DHTMsg struct {
 	// Other?
 	stopNode string `json:"stopNode"`
 
-	//bytes string `json:"bytes"`
+	bytes string `json:"bytes"`
 }
 
 type Transport struct {
