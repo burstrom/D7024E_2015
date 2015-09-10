@@ -3,7 +3,32 @@ package dht
 import (
 	"fmt"
 	"testing"
+	"sync"
 )
+
+func TestNet1(t *testing.T){
+	var wg sync.WaitGroup
+	fmt.Println("## Testing started")
+	id0 := "00"
+	id1 := "01"
+	id2 := "02"
+	/*id3 := "03"
+	id4 := "04"
+	id5 := "05"
+	id6 := "06"
+	id7 := "07"*/
+	node0 := makeDHTNode(&id0, "localhost", "1111")
+	node1 := makeDHTNode(&id1, "localhost", "1112")
+	node2 := makeDHTNode(&id2, "localhost", "1113")
+	wg.Add(2)
+	go node0.startServer(&wg)
+	go node2.startServer(&wg)
+	wg.Wait()
+
+	go node0.transport.send(CreateMsg("bajs","localhost:1111","localhost:1112","grejs"))
+	node1.transport.listen()
+	//key string, src string, dst string, bytes string
+}
 
 func TestDHT1(t *testing.T) {
 	id0 := "00"
@@ -113,8 +138,5 @@ func TestDHT2(t *testing.T) {
 
 	nodeForKey3 := node1.lookup(key3)
 	fmt.Println("dht node " + nodeForKey3.nodeId + " running at " + nodeForKey3.contact.ip + ":" + nodeForKey3.contact.port + " is responsible for " + key3)
-
-
-
 
 }

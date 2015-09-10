@@ -1,5 +1,8 @@
 package dht
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 type Contact struct {
 	ip   string
@@ -15,7 +18,9 @@ type DHTNode struct {
 	successor   *DHTNode
 	predecessor *DHTNode
 	contact     Contact
+	// Added manually:
 	fingers [bits]*DHTNode
+	transport *Transport
 }
 
 func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
@@ -23,6 +28,7 @@ func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
 	dhtNode := new(DHTNode)
 	dhtNode.contact.ip = ip
 	dhtNode.contact.port = port
+	dhtNode.transport = CreateTransport(dhtNode, ip+":"+port)
 	//No ID? Let's generate one.
 	if nodeId == nil {
 		genNodeId := generateNodeId()
@@ -30,11 +36,17 @@ func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
 	} else {
 		dhtNode.nodeId = *nodeId
 	}
-
 	dhtNode.successor = nil
 	dhtNode.predecessor = nil
 
+	// Added manually:
+
 	return dhtNode
+}
+
+func (dhtNode *DHTNode) startServer(wg *sync.WaitGroup) {
+	wg.Done()
+	dhtNode.transport.listen()
 }
 
 func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
@@ -72,7 +84,7 @@ func (dhtNode *DHTNode) lookup(key string) *DHTNode {
 func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 	// If the node or it's successor is responsible for the key?
 	// Uses fingers to achieve a logarithmic lookup instead of linear.
-	fmt.Print(dhtNode.nodeId + ", ")
+
 	counter = counter +1
 	if(dhtNode.responsible(key)) {
 		return dhtNode
