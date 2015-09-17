@@ -51,6 +51,18 @@ func (dhtNode *DHTNode) startServer(wg *sync.WaitGroup) {
 	dhtNode.transport.listen()
 }
 
+func (dhtNode *DHTNode) updateNode(msg *DHTMsg) {
+	// Source of msg becomes predecessor, data has nodeID, ip & port for successor)
+	ip_port := strings.Split(msg.Src, ":")
+
+	preNode := makeDHTNode(&msg.Key, ip_port[0], ip_port[1])
+	dhtNode.predecessor = preNode
+	successor := strings.Split(msg.Data, ":")
+	if msg.Data != "" {
+		dhtNode.successor = makeDHTNode(&successor[0], successor[1], successor[2])
+	}
+}
+
 func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 	ip_port := strings.Split(msg.Src, ":")
 	nodeid := msg.Key
@@ -59,11 +71,29 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 	if dhtNode.successor == nil && dhtNode.predecessor == nil {
 		dhtNode.predecessor = newDHTNode
 		dhtNode.successor = newDHTNode
-		if msg.Opt != "Response" {
-			dhtNode.send("join", newDHTNode, "Response")
+		dhtNode.send("update", newDHTNode, "", dhtNode.nodeId+":"+dhtNode.transport.bindAdress)
+
+	} else {
+		// Is the node between dhtNode and dhtNode successor?
+		if between([]byte(dhtNode.nodeId), []byte(dhtNode.successor.nodeId), []byte(newDHTNode.nodeId)) {
+			newDHTNode.successor = dhtNode.successor
+			newDHTNode.predecessor = dhtNode
+			//dhtNode.send("join", newDHTNode, "response", "")
+
+			dhtNode.successor = newDHTNode
+			// Update successor node (only predecessor)
+			newDHTNode.send("update", newDHTNode.successor, "", "")
+
+			// Update the new nodes value, with dhtNode as predecessor and the data-string as successor
+			dhtNode.send("update", newDHTNode, "", newDHTNode.successor.nodeId+":"+newDHTNode.successor.transport.bindAdress)
+
+		} else {
+			//fmt.Println("Node:" + newDHTNode.nodeId + " isnt between " + dhtNode.nodeId + " - " + dhtNode.successor.nodeId)
+			newDHTNode.send("join", dhtNode.successor, "", "")
 		}
-		fmt.Println(dhtNode)
+
 	}
+	//fmt.Println(dhtNode)
 }
 
 func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
@@ -72,6 +102,7 @@ func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 		// Set the dhtNodes successor to the new node, and change predecessor
 		dhtNode.predecessor = newDHTNode
 		dhtNode.successor = newDHTNode
+
 		newDHTNode.predecessor = dhtNode
 		newDHTNode.successor = dhtNode
 	} else {

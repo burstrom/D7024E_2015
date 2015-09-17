@@ -11,8 +11,9 @@ type DHTMsg struct {
 	Src string `json:"src"`
 	Dst string `json:"dst"`
 	// Other?
-	Req string `json:"req"`
-	Opt string `json:"opt"`
+	Req  string `json:"req"`
+	Opt  string `json:"opt"`
+	Data string `json:"data"`
 	//Bytes string `json:"bytes"`
 }
 
@@ -31,13 +32,14 @@ func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
 	return transport
 }
 
-func CreateMsg(key string, src string, dst string, req string, opt string) *DHTMsg {
+func CreateMsg(key string, src string, dst string, req string, opt string, data string) *DHTMsg {
 	dhtMsg := &DHTMsg{}
 	dhtMsg.Key = key
 	dhtMsg.Src = src
 	dhtMsg.Dst = dst
 	dhtMsg.Req = req
 	dhtMsg.Opt = opt
+	dhtMsg.Data = data
 	return dhtMsg
 }
 
@@ -47,19 +49,17 @@ func (transport *Transport) handler() {
 		case msg := <-transport.queue:
 			switch msg.Req {
 			case "update":
-				fmt.Println("\\e[96m[UPDATE]\\e[39m received!")
-				fmt.Println(msg)
+				transport.node.updateNode(msg)
 			case "join":
-
-				//fmt.Println("[" + transport.node.nodeId + "]: <-[JOIN]:[" + msg.Src + "]")
-				//fmt.Println("SRC:" + msg.Src)
-				//fmt.Println("DST:" + msg.Dst)
-				//fmt.Println(msg)
 				transport.node.joinRing(msg)
-				//transport.node.addToRing(newDHTNode)
-
+			case "printring":
+				if msg.Opt != transport.node.nodeId {
+					transport.node.send("printring", transport.node.successor, msg.Opt, msg.Data+"->"+transport.node.nodeId)
+				} else {
+					fmt.Println(msg.Data)
+				}
 			}
-			//fmt.Println(msg.Dst + " DEST")
+
 		}
 	}
 }
@@ -87,9 +87,9 @@ func (transport *Transport) listen() {
 	}
 }
 
-func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt string) {
+func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
 
-	msg := CreateMsg(dhtNode.nodeId, dhtNode.transport.bindAdress, dstNode.transport.bindAdress, req, opt)
+	msg := CreateMsg(dhtNode.nodeId, dhtNode.transport.bindAdress, dstNode.transport.bindAdress, req, opt, data)
 	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	defer conn.Close()
