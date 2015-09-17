@@ -1,4 +1,4 @@
-# D7024E_2015 [![Build Status](http://luxxorina.luxxor.se:8888/buildStatus/icon?job=D7024E-Distributedsomething)](http://luxxorina.luxxor.se:8888/job/D7024E-Distributedsomething)
+# D7024E_2015 [![Build Status](http://luxxorina.luxxor.se:9980/buildStatus/icon?job=D7024E-Distributedsomething)](http://luxxorina.luxxor.se:8888/job/D7024E-Distributedsomething)
 
 This is our directory for the laboration in the course D7024E @ Luleå University of Technology
 
