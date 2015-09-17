@@ -2,11 +2,11 @@ package dht
 
 import (
 	"fmt"
-	"testing"
 	"sync"
+	"testing"
 )
 
-func TestNet1(t *testing.T){
+func TestNet1(t *testing.T) {
 	var wg sync.WaitGroup
 	fmt.Println("## Testing started")
 	id0 := "00"
@@ -26,19 +26,18 @@ func TestNet1(t *testing.T){
 	node6 := makeDHTNode(&id6, "localhost", "1117")
 	node7 := makeDHTNode(&id7, "localhost", "1118")
 	wg.Add(7)
-	go node0.startServer(&wg)
 	go node1.startServer(&wg)
 	go node2.startServer(&wg)
 	go node3.startServer(&wg)
 	go node4.startServer(&wg)
 	go node5.startServer(&wg)
 	go node6.startServer(&wg)
+	go node7.startServer(&wg)
 	wg.Wait()
 
-	//CreateMsg(key string, src string, dst string, bytes string)
-	go node0.transport.send(CreateMsg("bajs","localhost:1111","localhost:1112","skitkul"))
-	node7.transport.listen()
-
+	go node1.transport.send(CreateMsg("bajs", "localhost:1111", "localhost:1112", "join"))
+	node0.transport.listen()
+	//key string, src string, dst string, bytes string
 }
 
 func TestDHT1(t *testing.T) {
@@ -86,11 +85,8 @@ func TestDHT1(t *testing.T) {
 	//node4b.printFingers()
 	//
 
-
-
 	//node0b.printRing()
 	//printAllFingers(node0b, node0b)
-
 
 }
 
@@ -136,7 +132,6 @@ func TestDHT2(t *testing.T) {
 
 	fmt.Println("TEST: norm\t" + n3_lookup.nodeId + " is responsible for " + key3)
 	fmt.Println("TEST: acc\t" + n3_lookupacc.nodeId + " is responsible for " + key3)
-
 
 	fmt.Println("-> ring structure")
 	node1.printRing()

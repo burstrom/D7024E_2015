@@ -1,74 +1,93 @@
 package dht
 
-import ("net"
+import (
 	"encoding/json"
 	"fmt"
+	"net"
 )
 
 type DHTMsg struct {
-	key string `json:"key"`
-	src string `json:"src"`
-	dst string `json:"dst"`
+	Key string `json:"key"`
+	Src string `json:"src"`
+	Dst string `json:"dst"`
 	// Other?
-	stopNode string `json:"stopNode"`
-
-	bytes string `json:"bytes"`
+	Req string `json:"req"`
+	//Bytes string `json:"bytes"`
 }
 
 type Transport struct {
-	node *DHTNode
+	node       *DHTNode
 	bindAdress string
-	queue chan *DHTMsg
+	queue      chan *DHTMsg
 }
 
-func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport{
+func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
 	transport := &Transport{}
 	transport.bindAdress = bindAdress
 	transport.node = dhtNode
+	transport.queue = make(chan *DHTMsg)
+	go transport.handler()
 	return transport
 }
 
-func CreateMsg(key string, src string, dst string, bytes string) *DHTMsg{
+func CreateMsg(key string, src string, dst string, req string) *DHTMsg {
 	dhtMsg := &DHTMsg{}
-	dhtMsg.key = key
-	dhtMsg.src = src
-	dhtMsg.dst = dst
-	dhtMsg.bytes = bytes
+	dhtMsg.Key = key
+	dhtMsg.Src = src
+	dhtMsg.Dst = dst
+	dhtMsg.Req = req
 	return dhtMsg
 }
 
+func (transport *Transport) handler() {
+	for {
+		select {
+		case msg := <-transport.queue:
+			switch msg.Req {
+			case "lookup":
+				fmt.Println("Message lookup received!")
+				fmt.Println(msg)
+			case "join":
+				fmt.Println("Message join received")
+				fmt.Println(msg)
+			}
+			//fmt.Println(msg.Dst + " DEST")
+		}
+	}
+}
+
 func (transport *Transport) listen() {
-	fmt.Println("Started listening : " + transport.bindAdress)
 	udpAddr, err := net.ResolveUDPAddr("udp", transport.bindAdress)
 	conn, err := net.ListenUDP("udp", udpAddr)
 	defer conn.Close()
-	if err != nil{
+	if err != nil {
 		fmt.Println(err.Error())
 	}
 	dec := json.NewDecoder(conn)
-
-	for{
+	fmt.Println("Started listening : " + transport.bindAdress)
+	for {
 		msg := DHTMsg{}
 		err = dec.Decode(&msg)
 		// We got something?
-		if err != nil{
+		if err != nil {
 			fmt.Println(err.Error())
 		}
+		//fmt.Println(msg)
+		//fmt.Println(transport.node.nodeId + ":> from:" + msg.Src + " to: " + msg.Dst)
 		transport.queue <- &msg
-		fmt.Println(transport.node.nodeId+":> from:" + msg.src + " to: " + msg.dst)
 		//fmt.Println(msg.Bytes + " " + "")
 	}
 }
 
-func (transport *Transport) send(msg *DHTMsg){
-	udpAddr, err := net.ResolveUDPAddr("udp", msg.dst)
+func (transport *Transport) send(msg *DHTMsg) {
+	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	defer conn.Close()
-	if err != nil{
+	if err != nil {
 		fmt.Println(err.Error())
 	}
 	res, _ := json.Marshal(msg)
-	_, err = conn.Write(res)
+	_, err = conn.Write(res) // wat?
 
 	// Todo: JSON Marshalling golang
 
