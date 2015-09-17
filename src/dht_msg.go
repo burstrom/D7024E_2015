@@ -12,6 +12,7 @@ type DHTMsg struct {
 	Dst string `json:"dst"`
 	// Other?
 	Req string `json:"req"`
+	Opt string `json:"opt"`
 	//Bytes string `json:"bytes"`
 }
 
@@ -30,12 +31,13 @@ func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
 	return transport
 }
 
-func CreateMsg(key string, src string, dst string, req string) *DHTMsg {
+func CreateMsg(key string, src string, dst string, req string, opt string) *DHTMsg {
 	dhtMsg := &DHTMsg{}
 	dhtMsg.Key = key
 	dhtMsg.Src = src
 	dhtMsg.Dst = dst
 	dhtMsg.Req = req
+	dhtMsg.Opt = opt
 	return dhtMsg
 }
 
@@ -44,12 +46,18 @@ func (transport *Transport) handler() {
 		select {
 		case msg := <-transport.queue:
 			switch msg.Req {
-			case "lookup":
-				fmt.Println("Message lookup received!")
+			case "update":
+				fmt.Println("\\e[96m[UPDATE]\\e[39m received!")
 				fmt.Println(msg)
 			case "join":
-				fmt.Println("Message join received")
-				fmt.Println(msg)
+
+				//fmt.Println("[" + transport.node.nodeId + "]: <-[JOIN]:[" + msg.Src + "]")
+				//fmt.Println("SRC:" + msg.Src)
+				//fmt.Println("DST:" + msg.Dst)
+				//fmt.Println(msg)
+				transport.node.joinRing(msg)
+				//transport.node.addToRing(newDHTNode)
+
 			}
 			//fmt.Println(msg.Dst + " DEST")
 		}
@@ -79,7 +87,9 @@ func (transport *Transport) listen() {
 	}
 }
 
-func (transport *Transport) send(msg *DHTMsg) {
+func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt string) {
+
+	msg := CreateMsg(dhtNode.nodeId, dhtNode.transport.bindAdress, dstNode.transport.bindAdress, req, opt)
 	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	defer conn.Close()
@@ -88,7 +98,5 @@ func (transport *Transport) send(msg *DHTMsg) {
 	}
 	res, _ := json.Marshal(msg)
 	_, err = conn.Write(res) // wat?
-
-	// Todo: JSON Marshalling golang
 
 }

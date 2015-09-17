@@ -1,6 +1,8 @@
 package dht
+
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -19,7 +21,7 @@ type DHTNode struct {
 	predecessor *DHTNode
 	contact     Contact
 	// Added manually:
-	fingers [bits]*DHTNode
+	fingers   [bits]*DHTNode
 	transport *Transport
 }
 
@@ -49,33 +51,48 @@ func (dhtNode *DHTNode) startServer(wg *sync.WaitGroup) {
 	dhtNode.transport.listen()
 }
 
+func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
+	ip_port := strings.Split(msg.Src, ":")
+	nodeid := msg.Key
+	newDHTNode := makeDHTNode(&nodeid, ip_port[0], ip_port[1])
+
+	if dhtNode.successor == nil && dhtNode.predecessor == nil {
+		dhtNode.predecessor = newDHTNode
+		dhtNode.successor = newDHTNode
+		if msg.Opt != "Response" {
+			dhtNode.send("join", newDHTNode, "Response")
+		}
+		fmt.Println(dhtNode)
+	}
+}
+
 func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 	// Default case, if there is only two nodes but neither one is connected.
-	if dhtNode.successor == nil && dhtNode.predecessor == nil{
+	if dhtNode.successor == nil && dhtNode.predecessor == nil {
 		// Set the dhtNodes successor to the new node, and change predecessor
 		dhtNode.predecessor = newDHTNode
 		dhtNode.successor = newDHTNode
 		newDHTNode.predecessor = dhtNode
 		newDHTNode.successor = dhtNode
-	}else {
-		if(between([]byte(dhtNode.nodeId),[]byte(dhtNode.successor.nodeId),[]byte(newDHTNode.nodeId))){
+	} else {
+		if between([]byte(dhtNode.nodeId), []byte(dhtNode.successor.nodeId), []byte(newDHTNode.nodeId)) {
 			// It should be between dhtNode and dhtNode successor.
 			newDHTNode.successor = dhtNode.successor
 			newDHTNode.predecessor = dhtNode
 			// Update the node1 successor, and node 2 predecessor.
 			dhtNode.successor.predecessor = newDHTNode
 			dhtNode.successor = newDHTNode
-		}else {
+		} else {
 			// Recursively call add to ring with next value
 			dhtNode.successor.addToRing(newDHTNode)
 		}
 	}
-	stabalizeRing(dhtNode,dhtNode)
+	stabalizeRing(dhtNode, dhtNode)
 }
 
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
 	//Linear lookup function, go through everynode until responsible is found
-	if (dhtNode.responsible(key)) {
+	if dhtNode.responsible(key) {
 		return dhtNode
 	}
 	return dhtNode.successor.lookup(key)
@@ -85,18 +102,18 @@ func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 	// If the node or it's successor is responsible for the key?
 	// Uses fingers to achieve a logarithmic lookup instead of linear.
 
-	counter = counter +1
-	if(dhtNode.responsible(key)) {
+	counter = counter + 1
+	if dhtNode.responsible(key) {
 		return dhtNode
 	}
-	if(dhtNode.successor.responsible(key)){
+	if dhtNode.successor.responsible(key) {
 		return dhtNode.successor
 	}
 	// Is the key within the interval node1 - node1.fingers[last] ?
-	if(between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-1].nodeId), []byte(key))){
+	if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-1].nodeId), []byte(key)) {
 		// if the key is within the interval, decrease the value k, check if the key still is in the interval?
 		for k := 1; k <= bits; k++ {
-			if (!between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers) - k].nodeId), []byte(key))) {
+			if !between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-k].nodeId), []byte(key)) {
 				return dhtNode.fingers[len(dhtNode.fingers)-k].acceleratedLookupUsingFingers(key)
 			}
 		}
@@ -107,14 +124,14 @@ func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 
 func (dhtNode *DHTNode) responsible(key string) bool {
 	// Is the key the same key as the node?
-	if(dhtNode.nodeId == key){
+	if dhtNode.nodeId == key {
 		return true
 	}
-	if(dhtNode.predecessor.nodeId == key){
+	if dhtNode.predecessor.nodeId == key {
 		return false
 	}
 	// Is the key value between
-	return between([]byte(dhtNode.predecessor.nodeId),[]byte(dhtNode.nodeId),[]byte(key))
+	return between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(key))
 	return false
 }
 
@@ -122,7 +139,7 @@ func (dhtNode *DHTNode) responsible(key string) bool {
 func (dhtNode *DHTNode) printRing() {
 	activeNode := dhtNode.successor
 	fmt.Print(dhtNode.nodeId + " ")
-	for activeNode != dhtNode{
+	for activeNode != dhtNode {
 		fmt.Print(activeNode.nodeId + " ")
 		activeNode = activeNode.successor
 	}
@@ -141,14 +158,14 @@ func (dhtNode *DHTNode) testCalcFingers(m int, bits int) {
 	fmt.Println("distance     " + dist.String()) */
 }
 
-
-func (dhtNode *DHTNode) printFingers(){
-	fmt.Print("#"+dhtNode.nodeId+ " :> ")
-	for k:=0; k < len(dhtNode.fingers); k++{
-		fmt.Print(dhtNode.fingers[k].nodeId+" ")
+func (dhtNode *DHTNode) printFingers() {
+	fmt.Print("#" + dhtNode.nodeId + " :> ")
+	for k := 0; k < len(dhtNode.fingers); k++ {
+		fmt.Print(dhtNode.fingers[k].nodeId + " ")
 	}
 	fmt.Println()
 }
+
 // nodeXX.calcFinger
 /*func (dhtNode *DHTNode) printFinger(n []byte, k int, m int) (string []byte){
 

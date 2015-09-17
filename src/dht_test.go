@@ -2,6 +2,7 @@ package dht
 
 import (
 	"fmt"
+
 	"sync"
 	"testing"
 )
@@ -35,7 +36,8 @@ func TestNet1(t *testing.T) {
 	go node7.startServer(&wg)
 	wg.Wait()
 
-	go node1.transport.send(CreateMsg("bajs", "localhost:1111", "localhost:1112", "join"))
+	go node5.send("join", node2, "")
+	//go node5.transport.send(CreateMsg("bajs", node5.transport.bindAdress, "localhost:1112", "join"))
 	node0.transport.listen()
 	//key string, src string, dst string, bytes string
 }
