@@ -54,9 +54,16 @@ func (transport *Transport) handler() {
 				transport.node.joinRing(msg)
 			case "printring":
 				if msg.Opt != transport.node.nodeId {
-					transport.node.send("printring", transport.node.successor, msg.Opt, msg.Data+"->"+transport.node.nodeId)
+					transport.node.send("printring", transport.node.predecessor, msg.Opt, msg.Data+"->"+transport.node.nodeId)
 				} else {
 					fmt.Println(msg.Data)
+				}
+			case "printall":
+				if msg.Opt != transport.node.nodeId {
+					transport.node.send("printall", transport.node.successor, msg.Opt, msg.Data+"\n"+transport.node.nodeId+"\t"+transport.node.predecessor.nodeId+"\t"+transport.node.successor.nodeId)
+				} else {
+					fmt.Print("Node\tPre.\tSucc.")
+					fmt.Println(msg.Data + "\n" + transport.node.nodeId + "\t" + transport.node.predecessor.nodeId + "\t" + transport.node.successor.nodeId)
 				}
 			}
 

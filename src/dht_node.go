@@ -121,6 +121,9 @@ func (dhtNode *DHTNode) addToRing(newDHTNode *DHTNode) {
 	stabalizeRing(dhtNode, dhtNode)
 }
 
+func (dhtNode *DHTNode) printAll() {
+	dhtNode.send("printall", dhtNode.successor, dhtNode.nodeId, "")
+}
 func (dhtNode *DHTNode) lookup(key string) *DHTNode {
 	//Linear lookup function, go through everynode until responsible is found
 	if dhtNode.responsible(key) {
