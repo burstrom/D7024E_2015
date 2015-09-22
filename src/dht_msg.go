@@ -11,9 +11,9 @@ type DHTMsg struct {
 	Src string `json:"src"`
 	Dst string `json:"dst"`
 	// Other?
-	Req  string `json:"req"`
-	Opt  string `json:"opt"`
-	Data string `json:"data"`
+	Req  string `json:"req"` //request type
+	Opt  string `json:"opt"` //option --
+	Data string `json:"data"`//data string [key:ip:port]
 	//Bytes string `json:"bytes"`
 }
 
@@ -23,6 +23,7 @@ type Transport struct {
 	queue      chan *DHTMsg
 }
 
+//Initiates Transport
 func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
 	transport := &Transport{}
 	transport.bindAdress = bindAdress
@@ -32,6 +33,7 @@ func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
 	return transport
 }
 
+//Creates Message with all info
 func CreateMsg(key string, src string, dst string, req string, opt string, data string) *DHTMsg {
 	dhtMsg := &DHTMsg{}
 	dhtMsg.Key = key
@@ -43,6 +45,7 @@ func CreateMsg(key string, src string, dst string, req string, opt string, data 
 	return dhtMsg
 }
 
+//Handles the different msg types from transport
 func (transport *Transport) handler() {
 	for {
 		select {
@@ -71,6 +74,7 @@ func (transport *Transport) handler() {
 	}
 }
 
+//Listens for a connection
 func (transport *Transport) listen() {
 	udpAddr, err := net.ResolveUDPAddr("udp", transport.bindAdress)
 	conn, err := net.ListenUDP("udp", udpAddr)
@@ -94,6 +98,7 @@ func (transport *Transport) listen() {
 	}
 }
 
+//Sends a msg
 func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
 
 	msg := CreateMsg(dhtNode.nodeId, dhtNode.transport.bindAdress, dstNode.transport.bindAdress, req, opt, data)
