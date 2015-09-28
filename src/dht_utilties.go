@@ -9,7 +9,7 @@ import (
 	"math/big"
 )
 
-const bits = 4
+const bits = 8
 
 func distance(a, b []byte, bitsvar int) *big.Int {
 	var ring big.Int
@@ -109,21 +109,14 @@ func generateNodeId() string {
 /* Two values to have recursive solution which is more easily understandable.
 * Method stabalizes and updates all finger-tables (which is essentially only a list of nodes.)
  */
-func stabalizeRing(dhtNode *DHTNode, stopNode *DHTNode) {
+
+func (dhtNode *DHTNode) stabilizeRing(stopNode string) {
 	for k := 0; k < bits; k++ {
 		idBytes, _ := hex.DecodeString(dhtNode.nodeId)
 		fingerID, _ := calcFinger(idBytes, k+1, bits)
 		dhtNode.fingers[k] = dhtNode.lookup(fingerID)
 	}
-	if dhtNode.successor.nodeId != stopNode.nodeId {
-		stabalizeRing(dhtNode.successor, stopNode)
-	}
-}
-
-// Prints all fingers of all nodes in the ring.
-func printAllFingers(dhtNode *DHTNode, stopNode *DHTNode) {
-	dhtNode.printFingers()
-	if dhtNode.successor.nodeId != stopNode.nodeId {
-		printAllFingers(dhtNode.successor, stopNode)
+	if dhtNode.successor.nodeId != stopNode {
+		dhtNode.successor.stabilizeRing(stopNode)
 	}
 }

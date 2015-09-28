@@ -14,22 +14,8 @@ type DHTMsg struct {
 	Req  string `json:"req"`
 	Opt  string `json:"opt"`
 	Data string `json:"data"`
+	//Origin string `json:"origin"`
 	//Bytes string `json:"bytes"`
-}
-
-type Transport struct {
-	node       *DHTNode
-	bindAdress string
-	queue      chan *DHTMsg
-}
-
-func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
-	transport := &Transport{}
-	transport.bindAdress = bindAdress
-	transport.node = dhtNode
-	transport.queue = make(chan *DHTMsg)
-	go transport.handler()
-	return transport
 }
 
 func CreateMsg(key string, src string, dst string, req string, opt string, data string) *DHTMsg {
@@ -43,27 +29,46 @@ func CreateMsg(key string, src string, dst string, req string, opt string, data 
 	return dhtMsg
 }
 
-func (transport *Transport) handler() {
+func (node *DHTNode) handler() {
 	for {
 		select {
-		case msg := <-transport.queue:
+		case msg := <-node.queue:
 			switch msg.Req {
-			case "update":
-				transport.node.updateNode(msg)
 			case "join":
-				transport.node.joinRing(msg)
-			case "printring":
-				if msg.Opt != transport.node.nodeId {
-					transport.node.send("printring", transport.node.predecessor, msg.Opt, msg.Data+"->"+transport.node.nodeId)
+				node.joinRing(msg)
+			case "update":
+				node.updateNode(msg)
+			case "lookupResp":
+				//fmt.Println("Response: " + msg.Data)
+				//transport.nodest.setupFingers()
+			case "fingerQuery":
+				//fmt.Println(node.nodeId+":\t", msg)
+
+				if node.responsible(msg.Opt) {
+					fmt.Println(msg)
+					node.fingerQuery(msg)
 				} else {
-					fmt.Println(msg.Data)
+					// Framtiden köra en accelerated forward?
+					node.sendFrwd(msg, node.successor)
+				}
+				// Returnerna sig själv till source om typen är request. av typen fingerresponse
+				// Vid typen response, lägg till den som finger.
+			case "fingerResponse":
+
+				node.fingerResponse(msg)
+			case "printring":
+				if msg.Opt != node.nodeId {
+					node.send("printring", node.predecessor, msg.Opt, msg.Data+"->"+node.nodeId)
+				} else {
+					//fmt.Println(msg.Data)
 				}
 			case "printall":
-				if msg.Opt != transport.node.nodeId {
-					transport.node.send("printall", transport.node.successor, msg.Opt, msg.Data+"\n"+transport.node.nodeId+"\t"+transport.node.predecessor.nodeId+"\t"+transport.node.successor.nodeId)
+				fingers := node.FingersToString()
+				if msg.Opt != node.nodeId {
+					node.send("printall", node.successor, msg.Opt, msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers)
 				} else {
-					fmt.Print("Node\tPre.\tSucc.")
-					fmt.Println(msg.Data + "\n" + transport.node.nodeId + "\t" + transport.node.predecessor.nodeId + "\t" + transport.node.successor.nodeId)
+					//fmt.Print("Pre.\tNode\tSucc.")
+					//fmt.Print(msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers+"\n", "")
 				}
 			}
 
@@ -71,39 +76,23 @@ func (transport *Transport) handler() {
 	}
 }
 
-func (transport *Transport) listen() {
-	udpAddr, err := net.ResolveUDPAddr("udp", transport.bindAdress)
+func (node *DHTNode) listen() {
+	udpAddr, err := net.ResolveUDPAddr("udp", node.bindAdress)
 	conn, err := net.ListenUDP("udp", udpAddr)
 	defer conn.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	dec := json.NewDecoder(conn)
-	fmt.Println("Started listening : " + transport.bindAdress)
+	// fmt.Println("Started listening : " + node.bindAdress)
+	Error("Started listening : " + node.bindAdress + "\n")
+
 	for {
 		msg := DHTMsg{}
 		err = dec.Decode(&msg)
-		// We got something?
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-		//fmt.Println(msg)
-		//fmt.Println(transport.node.nodeId + ":> from:" + msg.Src + " to: " + msg.Dst)
-		transport.queue <- &msg
-		//fmt.Println(msg.Bytes + " " + "")
+		node.queue <- &msg
 	}
-}
-
-func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
-
-	msg := CreateMsg(dhtNode.nodeId, dhtNode.transport.bindAdress, dstNode.transport.bindAdress, req, opt, data)
-	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
-	conn, err := net.DialUDP("udp", nil, udpAddr)
-	defer conn.Close()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	res, _ := json.Marshal(msg)
-	_, err = conn.Write(res) // wat?
-
 }
