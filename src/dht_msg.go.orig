@@ -11,10 +11,18 @@ type DHTMsg struct {
 	Src string `json:"src"`
 	Dst string `json:"dst"`
 	// Other?
+<<<<<<< HEAD
 	Req  string `json:"req"`
 	Opt  string `json:"opt"`
 	Data string `json:"data"`
 	//Origin string `json:"origin"`
+	//Bytes string `json:"bytes"`
+}
+
+=======
+	Req  string `json:"req"` //request type
+	Opt  string `json:"opt"` //option --
+	Data string `json:"data"`//data string [key:ip:port]
 	//Bytes string `json:"bytes"`
 }
 
@@ -24,6 +32,7 @@ type Transport struct {
 	queue      chan *DHTMsg
 }
 
+//Initiates Transport
 func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
 	transport := &Transport{}
 	transport.bindAdress = bindAdress
@@ -33,6 +42,8 @@ func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
 	return transport
 }
 
+//Creates Message with all info
+>>>>>>> fba74b94cb9f90ad7f1ca98f48f4d3c5a7aecaa3
 func CreateMsg(key string, src string, dst string, req string, opt string, data string) *DHTMsg {
 	dhtMsg := &DHTMsg{}
 	dhtMsg.Key = key
@@ -44,7 +55,12 @@ func CreateMsg(key string, src string, dst string, req string, opt string, data 
 	return dhtMsg
 }
 
+<<<<<<< HEAD
 func (node *DHTNode) handler() {
+=======
+//Handles the different msg types from transport
+func (transport *Transport) handler() {
+>>>>>>> fba74b94cb9f90ad7f1ca98f48f4d3c5a7aecaa3
 	for {
 		select {
 		case msg := <-node.queue:
@@ -91,8 +107,14 @@ func (node *DHTNode) handler() {
 	}
 }
 
+<<<<<<< HEAD
 func (node *DHTNode) listen() {
 	udpAddr, err := net.ResolveUDPAddr("udp", node.bindAdress)
+=======
+//Listens for a connection
+func (transport *Transport) listen() {
+	udpAddr, err := net.ResolveUDPAddr("udp", transport.bindAdress)
+>>>>>>> fba74b94cb9f90ad7f1ca98f48f4d3c5a7aecaa3
 	conn, err := net.ListenUDP("udp", udpAddr)
 	defer conn.Close()
 	if err != nil {
@@ -105,14 +127,16 @@ func (node *DHTNode) listen() {
 	for {
 		msg := DHTMsg{}
 		err = dec.Decode(&msg)
-		// We got something?
 		if err != nil {
 			fmt.Println(err.Error())
 		}
 		node.queue <- &msg
 	}
 }
+<<<<<<< HEAD
+=======
 
+//Sends a msg
 func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
 
 	msg := CreateMsg(dhtNode.nodeId, dhtNode.transport.bindAdress, dstNode.transport.bindAdress, req, opt, data)
@@ -126,3 +150,4 @@ func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
 	_, err = conn.Write(res) // wat?
 
 }
+>>>>>>> fba74b94cb9f90ad7f1ca98f48f4d3c5a7aecaa3
