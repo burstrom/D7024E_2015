@@ -18,21 +18,6 @@ type DHTMsg struct {
 	//Bytes string `json:"bytes"`
 }
 
-type Transport struct {
-	node       *DHTNode
-	bindAdress string
-	queue      chan *DHTMsg
-}
-
-func CreateTransport(dhtNode *DHTNode, bindAdress string) *Transport {
-	transport := &Transport{}
-	transport.bindAdress = bindAdress
-	transport.node = dhtNode
-	transport.queue = make(chan *DHTMsg)
-	go transport.handler()
-	return transport
-}
-
 func CreateMsg(key string, src string, dst string, req string, opt string, data string) *DHTMsg {
 	dhtMsg := &DHTMsg{}
 	dhtMsg.Key = key
@@ -60,7 +45,7 @@ func (node *DHTNode) handler() {
 				//fmt.Println(node.nodeId+":\t", msg)
 
 				if node.responsible(msg.Opt) {
-					fmt.Println(msg)
+					// fmt.Println(msg)
 					node.fingerQuery(msg)
 				} else {
 					// Framtiden köra en accelerated forward?
@@ -82,7 +67,9 @@ func (node *DHTNode) handler() {
 				if msg.Opt != node.nodeId {
 					node.send("printall", node.successor, msg.Opt, msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers)
 				} else {
-					//fmt.Print("Pre.\tNode\tSucc.")
+					str := "Pre.\tNode\tSucc.\n" + msg.Data + "\n" + node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.successor.nodeId + "\t" + fingers + "\n"
+					Noticeln(str)
+					//fmt.Print(")
 					//fmt.Print(msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers+"\n", "")
 				}
 			}
@@ -105,24 +92,9 @@ func (node *DHTNode) listen() {
 	for {
 		msg := DHTMsg{}
 		err = dec.Decode(&msg)
-		// We got something?
 		if err != nil {
 			fmt.Println(err.Error())
 		}
 		node.queue <- &msg
 	}
-}
-
-func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
-
-	msg := CreateMsg(dhtNode.nodeId, dhtNode.transport.bindAdress, dstNode.transport.bindAdress, req, opt, data)
-	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
-	conn, err := net.DialUDP("udp", nil, udpAddr)
-	defer conn.Close()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	res, _ := json.Marshal(msg)
-	_, err = conn.Write(res) // wat?
-
 }

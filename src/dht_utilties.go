@@ -9,7 +9,7 @@ import (
 	"math/big"
 )
 
-const bits = 8
+const bits = 4
 
 func distance(a, b []byte, bitsvar int) *big.Int {
 	var ring big.Int

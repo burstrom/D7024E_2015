@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	//"strconv"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -68,24 +68,27 @@ func (dhtNode *DHTNode) updateNode(msg *DHTMsg) {
 	}
 }
 
+/* 	When a node gets a finger query, it splits the data to get the origin node info and also which index value it should be pointed to.
+Then it sends a response to the origin node with its own ID, Binddress (in the data) comma separated.
+*/
 func (dhtNode *DHTNode) fingerQuery(msg *DHTMsg) {
-	// Source of msg becomes predecessor, data has nodeID, ip & port for successor)
-	//fmt.Println("Node #" + dhtNode.nodeId + " Got a finger QUERY from: " + msg.Src)
-	/*ip_port := strings.Split(msg.Src, ":")
-	preNode := makeDHTNode(&msg.Key, ip_port[0], ip_port[1])
-
-	dhtNode.predecessor = preNode
-	*/
-	successor := strings.Split(msg.Data, ":")
-	newNode := makeDHTNode(&successor[0], successor[1], successor[2])
+	data := strings.Split(msg.Data, ":")
+	newNode := makeDHTNode(&data[0], data[1], data[2])
 	//time.Sleep(200 * time.Millisecond)
-	go dhtNode.send("fingerResponse", newNode, msg.Opt, msg.Data)
-	//time.Sleep(200 * time.Millisecond)
+	go dhtNode.send("fingerResponse", newNode, data[3], dhtNode.nodeId+":"+dhtNode.bindAdress)
+	//time.Sleep(200 * time.Millisecond}
 }
-
 func (dhtNode *DHTNode) fingerResponse(msg *DHTMsg) {
 	// Source of msg becomes predecessor, data has nodeID, ip & port for successor)
-	fmt.Println("Node #" + dhtNode.nodeId + " Got a finger RESPONSE from: " + msg.Src + " Searching for Key:" + msg.Opt + " K: " + msg.Data)
+	data := strings.Split(msg.Data, ":")
+	newNode := makeDHTNode(&data[0], data[1], data[2])
+	fIndex, err := strconv.Atoi(msg.Opt)
+	if err != nil {
+		fmt.Println(err)
+	}
+	dhtNode.fingers[fIndex] = newNode
+	// fmt.Println("Node #" + dhtNode.nodeId + " Got a finger RESPONSE from: " + msg.Src + " K Value = " + msg.Opt)
+
 	//dhtNode.fingers[]
 }
 
@@ -204,28 +207,15 @@ func (dhtNode *DHTNode) FingersToString() string {
 }
 
 func (dhtNode *DHTNode) setupFingers() {
-	fmt.Println("From node " + dhtNode.nodeId)
+	// fmt.Println("From node " + dhtNode.nodeId)
 	//kString := ""
 	for k := 0; k < bits; k++ {
 		idBytes, _ := hex.DecodeString(dhtNode.nodeId)
 		//fingerID, _ := calcFinger(idBytes, k+1, bits)
 		fingerHex, _ := calcFinger(idBytes, k+1, bits)
-		//time.Sleep(50 * time.Millisecond)
-		//fmt.Print("Node #" + dhtNode.nodeId + " :>")
-		//time.Sleep(100 * time.Millisecond)
-		//kstr := strconv.Itoa(k)
-		//fmt.Print("K = ", k)
-		//kString = stcronv.Itoa(k)
-		//fmt.Println(kString)
-		//time.Sleep(500 * time.Millisecond)
-		//fmt.Println(" , " + kString)
-		dhtNode.send("fingerQuery", dhtNode.successor, fingerHex, dhtNode.nodeId+":"+dhtNode.bindAdress)
-		//fingerNode := dhtNode.lookup(fingerHex)
-		//time.Sleep(200 * time.Millisecond)
-		//fingerID, _ := hex.DecodeString(fingerNode.nodeId)
-		//fmt.Println("HERE!")
-		//fmt.Println("Looped #", k, " times\t", fingerID)
-		//fmt.Println("Nodeval: ", fingerNode)
+		kstr := strconv.Itoa(k)
+		dhtNode.send("fingerQuery", dhtNode.successor, fingerHex, dhtNode.nodeId+":"+dhtNode.bindAdress+":"+kstr)
+
 	}
 
 }
@@ -233,7 +223,7 @@ func (dhtNode *DHTNode) setupFingers() {
 func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
 
 	msg := CreateMsg(dhtNode.nodeId, dhtNode.bindAdress, dstNode.bindAdress, req, opt, data)
-	fmt.Println("Message:", msg)
+	// fmt.Println("Message:", msg)
 	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	defer conn.Close()
@@ -252,4 +242,15 @@ func (dhtNode *DHTNode) sendFrwd(msg *DHTMsg, dstNode *DHTNode) {
 		originNode.send(msg.Req, dstNode, msg.Opt, msg.Data)
 	}
 
+}
+
+func (dhtNode *DHTNode) printFingers() string {
+	output := "{"
+	finger := dhtNode.fingers[0]
+	for k := 0; k < bits; k++ {
+		finger = dhtNode.fingers[k]
+		output = output + "," + finger.nodeId + " " + finger.bindAdress
+	}
+	output = dhtNode.nodeId + ": " + output + "}"
+	return output
 }
