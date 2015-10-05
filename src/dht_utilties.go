@@ -3,7 +3,7 @@ package dht
 import (
 	"bytes"
 	"crypto/sha1"
-	"encoding/hex"
+	// "encoding/hex"
 	"fmt"
 	"github.com/nu7hatch/gouuid"
 	"math/big"
@@ -109,7 +109,7 @@ func generateNodeId() string {
 /* Two values to have recursive solution which is more easily understandable.
 * Method stabalizes and updates all finger-tables (which is essentially only a list of nodes.)
  */
-
+/*
 func (dhtNode *DHTNode) stabilizeRing(stopNode string) {
 	for k := 0; k < bits; k++ {
 		idBytes, _ := hex.DecodeString(dhtNode.nodeId)
@@ -120,3 +120,4 @@ func (dhtNode *DHTNode) stabilizeRing(stopNode string) {
 		dhtNode.successor.stabilizeRing(stopNode)
 	}
 }
+*/

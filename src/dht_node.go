@@ -26,16 +26,21 @@ type DHTNode struct {
 	successor   *DHTNode
 	predecessor *DHTNode
 	// Added manually:
-	fingers    [bits]*DHTNode
-	bindAdress string
-	queue      chan *DHTMsg
+	fingers     [bits]*VNode
+	bindAddress string
+	queue       chan *DHTMsg
 }
 
-func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
+type VNode struct {
+	nodeId      string
+	bindAddress string
+}
+
+func makeDHTNode(nodeId *string, bindAddress string) *DHTNode {
 	// Defines the node, and adds the tuple values of IP and Port.
 	dhtNode := new(DHTNode)
 	//dhtNode.transport = CreateTransport(dhtNode, ip+":"+port)
-	dhtNode.bindAdress = ip + ":" + port
+	dhtNode.bindAddress = bindAddress
 	dhtNode.queue = make(chan *DHTMsg)
 	//No ID? Let's generate one.
 	if nodeId == nil {
@@ -51,6 +56,13 @@ func makeDHTNode(nodeId *string, ip string, port string) *DHTNode {
 	return dhtNode
 }
 
+func makeVNode(nodeId *string, bindAddress string) *VNode {
+	vNode := new(VNode)
+	vNode.bindAddress = bindAddress
+	vNode.nodeId = *nodeId
+	return vNode
+}
+
 func (dhtNode *DHTNode) startServer(wg *sync.WaitGroup) {
 	wg.Done()
 	dhtNode.listen()
@@ -58,13 +70,12 @@ func (dhtNode *DHTNode) startServer(wg *sync.WaitGroup) {
 
 func (dhtNode *DHTNode) updateNode(msg *DHTMsg) {
 	// Source of msg becomes predecessor, data has nodeID, ip & port for successor)
-	ip_port := strings.Split(msg.Src, ":")
 
-	preNode := makeDHTNode(&msg.Key, ip_port[0], ip_port[1])
+	preNode := makeDHTNode(&msg.Key, msg.Src)
 	dhtNode.predecessor = preNode
-	successor := strings.Split(msg.Data, ":")
 	if msg.Data != "" {
-		dhtNode.successor = makeDHTNode(&successor[0], successor[1], successor[2])
+		successor := strings.Split(msg.Data, ";")
+		dhtNode.successor = makeDHTNode(&successor[0], successor[1])
 	}
 }
 
@@ -72,35 +83,32 @@ func (dhtNode *DHTNode) updateNode(msg *DHTMsg) {
 Then it sends a response to the origin node with its own ID, Binddress (in the data) comma separated.
 */
 func (dhtNode *DHTNode) fingerQuery(msg *DHTMsg) {
-	data := strings.Split(msg.Data, ":")
-	newNode := makeDHTNode(&data[0], data[1], data[2])
+
 	//time.Sleep(200 * time.Millisecond)
-	go dhtNode.send("fingerResponse", newNode, data[3], dhtNode.nodeId+":"+dhtNode.bindAdress)
+	// fmt.Println(msg)
+	go dhtNode.send("fingerResponse", msg.Origin, "", "", msg.Data)
+	// go dhtNode.send("fingerResponse", newNode, data[3], dhtNode.nodeId+":"+dhtNode.bindAdress)
 	//time.Sleep(200 * time.Millisecond}
 }
+
 func (dhtNode *DHTNode) fingerResponse(msg *DHTMsg) {
 	// Source of msg becomes predecessor, data has nodeID, ip & port for successor)
-	data := strings.Split(msg.Data, ":")
-	newNode := makeDHTNode(&data[0], data[1], data[2])
-	fIndex, err := strconv.Atoi(msg.Opt)
+
+	newNode := makeVNode(&msg.Key, msg.Src)
+	fIndex, err := strconv.Atoi(msg.Data)
 	if err != nil {
 		fmt.Println(err)
 	}
 	dhtNode.fingers[fIndex] = newNode
-	// fmt.Println("Node #" + dhtNode.nodeId + " Got a finger RESPONSE from: " + msg.Src + " K Value = " + msg.Opt)
-
-	//dhtNode.fingers[]
 }
 
 func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
-	ip_port := strings.Split(msg.Src, ":")
-	nodeid := msg.Key
-	newDHTNode := makeDHTNode(&nodeid, ip_port[0], ip_port[1])
+	newDHTNode := makeDHTNode(&msg.Key, msg.Src)
 
 	if dhtNode.successor == nil && dhtNode.predecessor == nil {
 		dhtNode.predecessor = newDHTNode
 		dhtNode.successor = newDHTNode
-		dhtNode.send("update", newDHTNode, "", dhtNode.nodeId+":"+dhtNode.bindAdress)
+		dhtNode.send("update", newDHTNode.bindAddress, "", "", dhtNode.nodeId+";"+dhtNode.bindAddress)
 
 	} else {
 		// Is the node between dhtNode and dhtNode successor?
@@ -111,14 +119,14 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 
 			dhtNode.successor = newDHTNode
 			// Update successor node (only predecessor)
-			newDHTNode.send("update", newDHTNode.successor, "", "")
+			newDHTNode.send("update", newDHTNode.successor.bindAddress, "", "", "")
 
 			// Update the new nodes value, with dhtNode as predecessor and the data-string as successor
-			dhtNode.send("update", newDHTNode, "", newDHTNode.successor.nodeId+":"+newDHTNode.successor.bindAdress)
+			dhtNode.send("update", newDHTNode.bindAddress, "", "", newDHTNode.successor.nodeId+";"+newDHTNode.successor.bindAddress)
 
 		} else {
 			// Should use fingers?
-			newDHTNode.send("join", dhtNode.successor, "", "")
+			newDHTNode.send("join", dhtNode.successor.bindAddress, "", "", "")
 		}
 	}
 	// Create a call or something to update fingertables??
@@ -129,31 +137,52 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 }
 
 func (dhtNode *DHTNode) printAll() {
-	dhtNode.send("printall", dhtNode.successor, dhtNode.nodeId, "")
-}
-
-func (dhtNode *DHTNode) lookup(key string) *DHTNode {
-	//Linear lookup function, go through everynode until responsible is found
-	//fmt.Println("Checking for key: " + key + " Against" + dhtNode.nodeId)
-	if dhtNode.responsible(key) {
-		fmt.Println("FINISHED??")
-		return dhtNode
+	if dhtNode.successor != nil {
+		dhtNode.send("printall", dhtNode.successor.bindAddress, "", "", "")
 	}
-	/*activeNode := dhtNode.successor
-	i := 1
-	for activeNode.nodeId != dhtNode.nodeId {
-		fmt.Println("loop: ", i)
-		i = i + 1
-		if activeNode.responsible(key) {
-			return activeNode
-		}
-		//fmt.Println("activenode succ:" + activeNode.successor.nodeId + " stopnode: " + dhtNode.nodeId)
-		activeNode = activeNode.successor
-	}*/
-	//return dhtNode
-	return dhtNode.successor.lookup(key)
+
 }
 
+/* Returns the node which is responsible for key as a Response
+Input MSG = {
+	Key = The key which is looked up,
+	Origin = Original sender.
+	Data = Which type of lookup, is it for a join or normal lookup?
+}
+
+Response MSG = {
+	Key = Node's ID,
+	Data = Node bindadress.
+}
+*/
+func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
+	if dhtNode.responsible(msg.Key) {
+		dhtNode.send("LookupResponse", msg.Origin, "", "", msg.Key)
+		// dhtNode.send("lookupResp", msg.Src, msg.Opt, msg.Data)
+
+	}
+	if dhtNode.successor.responsible(msg.Key) {
+		dhtNode.successor.send("LookupResponse", msg.Origin, "", "", msg.Key)
+		// return dhtNode.successor
+	}
+	// Is the key within the interval node1 - node1.fingers[last] ?
+	if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-1].nodeId), []byte(msg.Key)) {
+		// if the key is within the interval, decrease the value k, check if the key still is in the interval?
+		for k := 1; k <= bits; k++ {
+			if !between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-k].nodeId), []byte(msg.Key)) {
+				fingerNode := dhtNode.fingers[len(dhtNode.fingers)-k]
+				dhtNode.send("LookupResponse", msg.Origin, "", fingerNode.nodeId, fingerNode.bindAddress)
+				return
+				//return dhtNode.fingers[len(dhtNode.fingers)-k].lookup(key)
+			}
+		}
+	}
+	// If the key isn't within the interval, it must be within another interval calculated from the last finger of node1
+	dhtNode.send("lookup", dhtNode.fingers[len(dhtNode.fingers)-1].bindAddress, msg.Origin, msg.Key, msg.Data)
+	//dhtNode.fingers[len(dhtNode.fingers)-1].lookup(key)
+}
+
+/*
 func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 	// If the node or it's successor is responsible for the key?
 	// Uses fingers to achieve a logarithmic lookup instead of linear.
@@ -177,7 +206,7 @@ func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 	}
 	// If the key isn't within the interval, it must be within another interval calculated from the last finger of node1
 	return dhtNode.fingers[len(dhtNode.fingers)-1].acceleratedLookupUsingFingers(key)
-}
+}*/
 
 func (dhtNode *DHTNode) responsible(key string) bool {
 	// Is the key the same key as the node?
@@ -214,17 +243,22 @@ func (dhtNode *DHTNode) setupFingers() {
 		//fingerID, _ := calcFinger(idBytes, k+1, bits)
 		fingerHex, _ := calcFinger(idBytes, k+1, bits)
 		kstr := strconv.Itoa(k)
-		dhtNode.send("fingerQuery", dhtNode.successor, fingerHex, dhtNode.nodeId+":"+dhtNode.bindAdress+":"+kstr)
-
+		dhtNode.send("fingerQuery", dhtNode.successor.bindAddress, "", fingerHex, kstr)
 	}
 
 }
 
-func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
+func (dhtNode *DHTNode) send(req, dst, origin, key, data string) {
+	// If the origin is empty, then it becomes the DHTNodes bind adress since it was the one who sent the first.
+	if key == "" {
+		key = dhtNode.nodeId
+	}
+	if origin == "" {
+		origin = dhtNode.bindAddress
+	}
+	msg := CreateMsg(req, dhtNode.bindAddress, origin, key, data)
 
-	msg := CreateMsg(dhtNode.nodeId, dhtNode.bindAdress, dstNode.bindAdress, req, opt, data)
-	// fmt.Println("Message:", msg)
-	udpAddr, err := net.ResolveUDPAddr("udp", msg.Dst)
+	udpAddr, err := net.ResolveUDPAddr("udp", dst)
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	defer conn.Close()
 	if err != nil {
@@ -232,16 +266,12 @@ func (dhtNode *DHTNode) send(req string, dstNode *DHTNode, opt, data string) {
 	}
 	res, _ := json.Marshal(msg)
 	_, err = conn.Write(res) // wat?
-
 }
 
+// Forwards the message from the origin node (which is sent in the data file)
 func (dhtNode *DHTNode) sendFrwd(msg *DHTMsg, dstNode *DHTNode) {
-	originNodeVal := strings.Split(msg.Data, ":")
-	originNode := makeDHTNode(&originNodeVal[0], originNodeVal[1], originNodeVal[2])
-	if originNode.nodeId != dhtNode.nodeId {
-		originNode.send(msg.Req, dstNode, msg.Opt, msg.Data)
-	}
-
+	msg.Src = dhtNode.bindAddress
+	dhtNode.send(msg.Req, dstNode.bindAddress, msg.Origin, msg.Key, msg.Data)
 }
 
 func (dhtNode *DHTNode) printFingers() string {
@@ -249,7 +279,7 @@ func (dhtNode *DHTNode) printFingers() string {
 	finger := dhtNode.fingers[0]
 	for k := 0; k < bits; k++ {
 		finger = dhtNode.fingers[k]
-		output = output + "," + finger.nodeId + " " + finger.bindAdress
+		output = output + "," + finger.nodeId + " " + finger.bindAddress
 	}
 	output = dhtNode.nodeId + ": " + output + "}"
 	return output
