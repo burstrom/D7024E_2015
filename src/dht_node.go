@@ -1,6 +1,7 @@
 package dht
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -83,17 +84,23 @@ func (dhtNode *DHTNode) updateNode(msg *DHTMsg) {
 Then it sends a response to the origin node with its own ID, Binddress (in the data) comma separated.
 */
 func (dhtNode *DHTNode) fingerQuery(msg *DHTMsg) {
-
+	if dhtNode.responsible(msg.Key) {
+		// fmt.Println(dhtNode.nodeId + " is responsible for :" + msg.Key)
+		go dhtNode.send("fingerResponse", msg.Origin, "", "", msg.Data)
+	} else if dhtNode.bindAddress != msg.Origin {
+		// Framtiden köra en accelerated forward?
+		// fmt.Println(dhtNode.nodeId + " isn't responsible for : " + msg.Key)
+		go dhtNode.sendFrwd(msg, dhtNode.successor)
+	}
 	//time.Sleep(200 * time.Millisecond)
 	// fmt.Println(msg)
-	go dhtNode.send("fingerResponse", msg.Origin, "", "", msg.Data)
+
 	// go dhtNode.send("fingerResponse", newNode, data[3], dhtNode.nodeId+":"+dhtNode.bindAdress)
 	//time.Sleep(200 * time.Millisecond}
 }
 
 func (dhtNode *DHTNode) fingerResponse(msg *DHTMsg) {
 	// Source of msg becomes predecessor, data has nodeID, ip & port for successor)
-
 	newNode := makeVNode(&msg.Key, msg.Src)
 	fIndex, err := strconv.Atoi(msg.Data)
 	if err != nil {
@@ -156,30 +163,29 @@ Response MSG = {
 }
 */
 func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
-	if dhtNode.responsible(msg.Key) {
-		dhtNode.send("LookupResponse", msg.Origin, "", "", msg.Key)
-		// dhtNode.send("lookupResp", msg.Src, msg.Opt, msg.Data)
+	fmt.Println(dhtNode.nodeId + " got from: " + msg.Src + " with key: " + msg.Key)
+	if between([]byte(dhtNode.nodeId), []byte(dhtNode.successor.nodeId), []byte(msg.Key)) {
+		fmt.Println(dhtNode.nodeId + " says: I am responsible for key")
+	} else if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-1].nodeId), []byte(msg.Key)) {
+		fmt.Println(msg.Key + " is between " + dhtNode.nodeId + " and " + dhtNode.fingers[len(dhtNode.fingers)-1].nodeId)
+		for k := bits - 1; k > 0; k-- {
+			if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[k].nodeId), []byte(msg.Key)) == false {
 
-	}
-	if dhtNode.successor.responsible(msg.Key) {
-		dhtNode.successor.send("LookupResponse", msg.Origin, "", "", msg.Key)
-		// return dhtNode.successor
-	}
-	// Is the key within the interval node1 - node1.fingers[last] ?
-	if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-1].nodeId), []byte(msg.Key)) {
-		// if the key is within the interval, decrease the value k, check if the key still is in the interval?
-		for k := 1; k <= bits; k++ {
-			if !between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-k].nodeId), []byte(msg.Key)) {
-				fingerNode := dhtNode.fingers[len(dhtNode.fingers)-k]
-				dhtNode.send("LookupResponse", msg.Origin, "", fingerNode.nodeId, fingerNode.bindAddress)
+				// fmt.Println(msg.Key + " is not between " + dhtNode.nodeId + " and " + dhtNode.fingers[len(dhtNode.fingers)-k].nodeId)
+				fmt.Println(msg.Key + " ISN'T between " + dhtNode.nodeId + " and " + dhtNode.fingers[k].nodeId)
+				//fingerNode := dhtNode.fingers[len(dhtNode.fingers)-k]
+				// fmt.Println(fingerNode)
+				// dhtNode.send("LookupResponse", msg.Origin, "", fingerNode.nodeId, fingerNode.bindAddress)
+				dhtNode.send("lookup", dhtNode.fingers[k].bindAddress, msg.Origin, msg.Key, msg.Data)
 				return
 				//return dhtNode.fingers[len(dhtNode.fingers)-k].lookup(key)
 			}
 		}
+
+	} else {
+		dhtNode.send("lookup", dhtNode.fingers[len(dhtNode.fingers)-1].bindAddress, msg.Origin, msg.Key, msg.Data)
 	}
-	// If the key isn't within the interval, it must be within another interval calculated from the last finger of node1
-	dhtNode.send("lookup", dhtNode.fingers[len(dhtNode.fingers)-1].bindAddress, msg.Origin, msg.Key, msg.Data)
-	//dhtNode.fingers[len(dhtNode.fingers)-1].lookup(key)
+
 }
 
 /*
@@ -208,25 +214,10 @@ func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
 	return dhtNode.fingers[len(dhtNode.fingers)-1].acceleratedLookupUsingFingers(key)
 }*/
 
-func (dhtNode *DHTNode) responsible(key string) bool {
-	// Is the key the same key as the node?
-	if dhtNode.nodeId == key {
-		//fmt.Println("Node " + dhtNode.nodeId + "[TRUE]")
-		return true
-	}
-	if dhtNode.predecessor.nodeId == key {
-		//fmt.Println("Node+" + dhtNode.nodeId + ".pre " + dhtNode.predecessor.nodeId + "[FALSE]")
-		return false
-	}
-	// Is the key value between
-	//fmt.Println("Return between: " + dhtNode.predecessor.nodeId + " - " + dhtNode.nodeId + " Key: " + key)
-	return between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(key))
-}
-
 func (dhtNode *DHTNode) FingersToString() string {
 	//fmt.Print("#" + dhtNode.nodeId + " :> ")
 	returnval := "{"
-	for k := 0; k < len(dhtNode.fingers); k++ {
+	for k := 0; k < bits; k++ {
 		if dhtNode.fingers[k] != nil {
 			returnval = returnval + dhtNode.fingers[k].nodeId + " "
 		}
@@ -238,18 +229,25 @@ func (dhtNode *DHTNode) FingersToString() string {
 func (dhtNode *DHTNode) setupFingers() {
 	// fmt.Println("From node " + dhtNode.nodeId)
 	//kString := ""
-	for k := 0; k < bits; k++ {
+	// fmt.Print("Node " + dhtNode.nodeId + " Fing:")
+	for k := 1; k < bits; k++ {
 		idBytes, _ := hex.DecodeString(dhtNode.nodeId)
 		//fingerID, _ := calcFinger(idBytes, k+1, bits)
-		fingerHex, _ := calcFinger(idBytes, k+1, bits)
+		fingerHex, _ := calcFinger(idBytes, k, bits)
+		//fmt.Print(" ' " + fingerHex)
 		kstr := strconv.Itoa(k)
 		dhtNode.send("fingerQuery", dhtNode.successor.bindAddress, "", fingerHex, kstr)
 	}
+	// fmt.Println("")
 
 }
 
 func (dhtNode *DHTNode) send(req, dst, origin, key, data string) {
 	// If the origin is empty, then it becomes the DHTNodes bind adress since it was the one who sent the first.
+	if req == "LookupResponse" {
+		fmt.Println("dst: " + dst + ", origin: " + origin + ", key: " + key + ", data: " + data)
+	}
+
 	if key == "" {
 		key = dhtNode.nodeId
 	}
@@ -283,4 +281,17 @@ func (dhtNode *DHTNode) printFingers() string {
 	}
 	output = dhtNode.nodeId + ": " + output + "}"
 	return output
+}
+
+func (dhtNode *DHTNode) responsible(key string) bool {
+	// key == dhtnode?
+	if bytes.Compare([]byte(dhtNode.nodeId), []byte(key)) == 0 {
+		return true
+	}
+	// If key > predecessor or <= dhtnode
+	if bytes.Compare([]byte(dhtNode.predecessor.nodeId), []byte(key)) == -1 || bytes.Compare([]byte(dhtNode.nodeId), []byte(key)) >= 0 {
+		return between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(key))
+	}
+	return false
+
 }

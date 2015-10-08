@@ -63,18 +63,21 @@ func TestNet1(t *testing.T) {
 	// time.Sleep(200 * time.Millisecond)
 
 	// Iterates and updates each nodes fingers.
+	fmt.Println("Setup fingers!")
 	for i := 0; i < 8; i++ {
 		go node[i].setupFingers()
 	}
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	/*for i := 0; i < 8; i++ {
 		Infoln("Node " + node[i].nodeId + ":" + node[i].FingersToString())
 	}*/
 	time.Sleep(50 * time.Millisecond)
-	go node[1].printAll()
+	go node[0].printAll()
 	time.Sleep(50 * time.Millisecond)
-	node[1].send("lookup", node[1].successor.bindAddress, "", "3", "")
+	node[1].send("lookup", node[1].successor.bindAddress, "", "10", "")
 
+	time.Sleep(5000 * time.Millisecond)
+	// go node[1].printAll()
 	time.Sleep(5000 * time.Millisecond)
 
 	//key string, src string, dst string, bytes string

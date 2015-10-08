@@ -39,8 +39,8 @@ func (node *DHTNode) handler() {
 		case msg := <-node.queue:
 			switch msg.Req {
 			case "LookupResponse":
-				vNode := makeVNode(&msg.Key, msg.Data)
-				fmt.Println(vNode)
+				// vNode := makeVNode(&msg.Key, msg.Data)
+
 				//Notice(node.nodeId + " Response: " + msg.Data + ", from " + msg.Key + "\n")
 			case "join":
 				node.joinRing(msg)
@@ -49,14 +49,13 @@ func (node *DHTNode) handler() {
 			case "lookup":
 				node.lookup(msg)
 			case "fingerQuery":
+				node.fingerQuery(msg)
 				//fmt.Println(node.nodeId+":\t", msg)
-				if node.responsible(msg.Key) {
-					// fmt.Println(msg)
-					node.fingerQuery(msg)
-				} else {
-					// Framtiden köra en accelerated forward?
-					node.sendFrwd(msg, node.successor)
-				}
+				// if node.responsible(msg.Key) {
+				// node.fingerQuery(msg)
+				// } else {
+				// node.sendFrwd(msg, node.successor)
+				// }
 				// Returnerna sig själv till source om typen är request. av typen fingerresponse
 				// Vid typen response, lägg till den som finger.
 			case "fingerResponse":

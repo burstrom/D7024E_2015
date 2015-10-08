@@ -28,7 +28,6 @@ func distance(a, b []byte, bitsvar int) *big.Int {
 
 func between(id1, id2, key []byte) bool {
 	// 0 if a==b, -1 if a < b, and +1 if a > b
-
 	if bytes.Compare(key, id1) == 0 { // key == id1
 		return true
 	}
