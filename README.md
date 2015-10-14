@@ -1,9 +1,5 @@
 # D7024E_2015 [![Build Status](http://luxxorina.luxxor.se:9980/buildStatus/icon?job=D7024E-Distributedsomething)](http://luxxorina.luxxor.se:8888/job/D7024E-Distributedsomething)
 
-
-####Objectives:
-- [ ] In the joinRing() method. the join should use fingerlookup to know which place the node should be added.
-
 ### Objective 2:
 - [ ] In the joinRing() method. the join should use fingerlookup to know which place the node should be added.
 
@@ -21,7 +17,11 @@
 - [ ] Get the docker to run
 
 ### Project Report:
-- [ ] Update for each Objective
+- [ ] Update for each Objective 2
+- [ ] Update for each Objective 3
+- [ ] Update for each Objective 4
+- [ ] Update for each Objective 5
+- [ ] Final adjustments and submit.
 
 
 ////
