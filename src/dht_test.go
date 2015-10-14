@@ -9,6 +9,7 @@ import (
 
 func TestNet1(t *testing.T) {
 	var wg sync.WaitGroup
+	// tQueue := makeTasker()
 	Notice("\n### TestNet1 Started\n")
 	node := [8]*DHTNode{}
 	fmt.Println("Legend:")
@@ -54,38 +55,45 @@ func TestNet1(t *testing.T) {
 	go node[6].startweb()
 	go node[7].startweb()
 
-	go node[1].send("join", node[0].bindAddress, "", "", "")
+	node[1].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
-	go node[2].send("join", node[1].bindAddress, "", "", "")
+	node[2].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
-	go node[3].send("join", node[1].bindAddress, "", "", "")
+	node[3].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
-	go node[4].send("join", node[2].bindAddress, "", "", "")
+	node[4].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
-	go node[5].send("join", node[2].bindAddress, "", "", "")
+	node[5].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
-	go node[6].send("join", node[3].bindAddress, "", "", "")
+	node[6].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
-	go node[7].send("join", node[3].bindAddress, "", "", "")
+	node[7].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
 	// go node[1].printAll()
 	// time.Sleep(200 * time.Millisecond)
 
 	// Iterates and updates each nodes fingers.
 	fmt.Println("Setup fingers!")
+	// go node[0].setupFingers()
 	for i := 0; i < 8; i++ {
-		go node[i].setupFingers()
+		fmt.Println("node", i, ".setupFingers()")
+		node[i].queue <- CreateMsg("fingerSetup", node[i].bindAddress, node[i].bindAddress, "", "")
+
 	}
-	time.Sleep(100 * time.Millisecond)
-	/*for i := 0; i < 8; i++ {
+	fmt.Println("HEJ!")
+	time.Sleep(800 * time.Millisecond)
+	fmt.Println(node[0].predecessor.bindAddress + " - " + node[0].bindAddress + " - " + node[0].successor.bindAddress)
+	fmt.Println(node[0].FingersToString())
+	/*for i := 0; i < bits; i++ {
 		Infoln("Node " + node[i].nodeId + ":" + node[i].FingersToString())
 	}*/
 	time.Sleep(50 * time.Millisecond)
-	go node[0].printAll()
+	fmt.Println("Pre \t Cur \t Suc")
+	node[0].printAll()
 	time.Sleep(50 * time.Millisecond)
-	node[1].send("lookup", node[1].successor.bindAddress, "", "10", "")
+	// node[1].send("lookup", node[1].bindAddress, "", "50", "")
 
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(15000 * time.Millisecond)
 	// go node[1].printAll()
 	time.Sleep(5000 * time.Millisecond)
 

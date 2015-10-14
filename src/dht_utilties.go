@@ -5,11 +5,11 @@ import (
 	"crypto/sha1"
 	// "encoding/hex"
 	"fmt"
-	"github.com/nu7hatch/gouuid"
+	// "github.com/nu7hatch/gouuid"
 	"math/big"
 )
 
-const bits = 4
+const bits = 20
 
 func distance(a, b []byte, bitsvar int) *big.Int {
 	var ring big.Int
@@ -26,12 +26,20 @@ func distance(a, b []byte, bitsvar int) *big.Int {
 	return &dist
 }
 
+func lst(id1, id2 string) bool {
+	bid1 := []byte(id1)
+	bid2 := []byte(id2)
+	if bytes.Compare(bid1, bid2) == -1 {
+		return true
+	}
+	return false
+}
+
 func between(id1, id2, key []byte) bool {
 	// 0 if a==b, -1 if a < b, and +1 if a > b
 	if bytes.Compare(key, id1) == 0 { // key == id1
 		return true
 	}
-
 	if bytes.Compare(id2, id1) == 1 { // id2 > id1
 		if bytes.Compare(key, id2) == -1 && bytes.Compare(key, id1) == 1 { // key < id2 && key > id1
 			return true
@@ -92,15 +100,16 @@ func calcFinger(n []byte, k int, m int) (string, []byte) {
 	return resultHex, resultBytes
 }
 
-func generateNodeId() string {
-	u, err := uuid.NewV4()
+func generateNodeId(name string) string {
+	// old
+	/*u, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
-	}
+	}*/
 
 	// calculate sha-1 hash
 	hasher := sha1.New()
-	hasher.Write([]byte(u.String()))
+	hasher.Write([]byte(name))
 
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	// "strings"
 	//"time" // added time method
 )
 
@@ -27,9 +28,15 @@ func CreateMsg(req, src, origin, key, data string) *DHTMsg {
 	//dhtMsg.Timestamp = Now() // Might cause problems?
 	dhtMsg.Key = key
 	dhtMsg.Src = src
-	dhtMsg.Req = req
 	dhtMsg.Origin = origin
 	dhtMsg.Data = data
+	dhtMsg.Req = req
+	/*Req := strings.Split(req, ",")
+	for key := range Req {
+		fmt.Println("Key:", key)
+	}*
+	dhtMsg.Req = ""*/
+
 	return dhtMsg
 }
 
@@ -38,10 +45,9 @@ func (node *DHTNode) handler() {
 		select {
 		case msg := <-node.queue:
 			switch msg.Req {
-			case "LookupResponse":
+			case "lookupResponse":
 				// vNode := makeVNode(&msg.Key, msg.Data)
-
-				//Notice(node.nodeId + " Response: " + msg.Data + ", from " + msg.Key + "\n")
+				Notice(node.nodeId + " Response: " + msg.Data + ", from " + msg.Key + "\n")
 			case "join":
 				node.joinRing(msg)
 			case "update":
@@ -50,28 +56,13 @@ func (node *DHTNode) handler() {
 				node.lookup(msg)
 			case "fingerQuery":
 				node.fingerQuery(msg)
-				//fmt.Println(node.nodeId+":\t", msg)
-				// if node.responsible(msg.Key) {
-				// node.fingerQuery(msg)
-				// } else {
-				// node.sendFrwd(msg, node.successor)
-				// }
-				// Returnerna sig själv till source om typen är request. av typen fingerresponse
-				// Vid typen response, lägg till den som finger.
+			case "fingerSetup":
+				node.setupFingers()
 			case "fingerResponse":
 				node.fingerResponse(msg)
-			case "printall":
-				fingers := node.FingersToString()
-				if msg.Origin != node.bindAddress {
-					msg.Data = msg.Data + node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.successor.nodeId + "\t" + fingers + "\n"
-					node.send("printall", node.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
-
-				} else {
-					str := "Pre.\tNode\tSucc.\n" + msg.Data + node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.successor.nodeId + "\t" + fingers + "\n"
-					Noticeln(str)
-					//fmt.Print(")
-					//fmt.Print(msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers+"\n", "")
-				}
+			case "printAll":
+				// fmt.Println(node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.successor.nodeId)
+				node.printQuery(msg)
 			}
 
 		}
