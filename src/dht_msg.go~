@@ -75,6 +75,7 @@ func (node *DHTNode) handler() {
 }
 func(dhtNode *DHTNode) PredResponse(msg *DHTMsg){
 	fmt.Println("src " +msg.Src +" dst : "+dhtNode.bindAddress)	
+	
 	dhtNode.send("PredQueryResponse",dhtNode.predecessor.bindAddress, "" ,"" ,dhtNode.predecessor.nodeId+";"+dhtNode.predecessor.bindAddress)
 }
 

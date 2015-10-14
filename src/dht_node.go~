@@ -99,6 +99,38 @@ func (node *DHTNode) printQuery(msg *DHTMsg) {
 		//fmt.Print(msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers+"\n", "")
 	}
 }
+func (dhtNode *DHTNode) stabilize() {
+	src := dhtNode.bindAddress
+	go dhtNode.send("update", src, dhtNode.successor[1], src,dhtNode.nodeId+";"+dhtNode.bindAddress)
+	waitRespons := time.NewTimer(time.Millisecond * 2000)
+	for {
+		select {
+		case r := <-dhtNode.responseMsg:
+			if between([]byte(dhtNode.nodeId), []byte(dhtNode.succ[0]), []byte(r.Key)) && r.Key != "" && dhtNode.nodeId != r.Key {
+				//fmt.Println(between([]byte(dhtNode.nodeId), []byte(dhtNode.succ[0]), []byte(r.Key)) && r.Key != "" && dhtNode.nodeId != r.Key)
+
+				dhtNode.succ[0] = r.Key
+				dhtNode.succ[1] = r.Origin
+				return
+			}
+			go dhtNode.transport.send(createMsg("notify", dhtNode.nodeId, sender, dhtNode.succ[1], sender))
+			return
+		case s := <-waitRespons.C:
+			s = s
+			dhtNode.succ[0] = dhtNode.fingers.fingerList[1].hash
+			dhtNode.succ[1] = dhtNode.fingers.fingerList[1].address
+			return
+		}
+	}
+}
+
+func (dhtNode *DHTNode) notify(msg *Msg) {
+	if dhtNode.pred[0] == "" || between([]byte(dhtNode.pred[0]), []byte(dhtNode.nodeId), []byte(msg.Key)) {
+		dhtNode.pred[0] = msg.Key
+		dhtNode.pred[1] = msg.Src
+	}
+	return
+}
 
 
 /* 	When a node gets a finger query, it splits the data to get the origin node info and also which index value it should be pointed to.
