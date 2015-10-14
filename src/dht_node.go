@@ -49,12 +49,12 @@ func makeDHTNode(nodeId *string, bindAddress string) *DHTNode {
 	dhtNode.queue = make(chan *DHTMsg)
 	//No ID? Let's generate one.
 	// dhtNode.nodeId = generateNodeId(bindAddress)
-	if nodeId == nil {
-		genNodeId := generateNodeId("0")
-		dhtNode.nodeId = genNodeId
-	} else {
-		dhtNode.nodeId = *nodeId
-	}
+	// if nodeId == nil {
+	genNodeId := generateNodeId(*nodeId)
+	dhtNode.nodeId = genNodeId
+	// } else {
+	// 	dhtNode.nodeId = *nodeId
+	// }
 	dhtNode.successor = nil
 	dhtNode.predecessor = nil
 	dhtNode.fingerResponses = 0
@@ -96,11 +96,11 @@ func (node *DHTNode) printQuery(msg *DHTMsg) {
 	// fts := node.FingersToString()
 
 	if msg.Origin != node.bindAddress {
-		msg.Data = msg.Data + node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.successor.nodeId + "\t\n"
+		msg.Data = msg.Data + node.predecessor.bindAddress + "\t" + node.bindAddress + "\t" + node.successor.bindAddress + "\t\n"
 		node.send("printAll", node.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
 
 	} else {
-		str := "Pre.\tNode\tSucc.\n" + msg.Data + node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.successor.nodeId + "\t\n"
+		str := "Pre.\tNode\tSucc.\n" + msg.Data + node.predecessor.bindAddress + "\t" + node.bindAddress + "\t" + node.successor.bindAddress + "\t\n"
 		Noticeln(str)
 		//fmt.Print(str)
 		//fmt.Print(msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers+"\n", "")
@@ -197,11 +197,13 @@ Response MSG = {
 }
 */
 func (dhtNode *DHTNode) lookup(requestType string, msg *DHTMsg) {
-	fmt.Println(dhtNode.nodeId + " got lookup of type: " + requestType + " from " + msg.Key)
-	if dhtNode.nodeId == msg.Key || (dhtNode.predecessor == nil && dhtNode.successor == nil) {
+	// fmt.Println(dhtNode.bindAddress + " got lookup of type: " + requestType + " from " + msg.Src)
+	if (dhtNode.nodeId == msg.Key) || (dhtNode.predecessor == nil && dhtNode.successor == nil) {
+
 		if requestType == "key" {
 			dhtNode.send("lookupResponse", msg.Origin, "", "", msg.Key)
 		} else {
+			fmt.Println(dhtNode.bindAddress + " joining with " + msg.Src)
 			dhtNode.send("joinResponse", msg.Origin, "", "", msg.Key)
 		}
 		return
@@ -212,14 +214,16 @@ func (dhtNode *DHTNode) lookup(requestType string, msg *DHTMsg) {
 		if requestType == "key" {
 			dhtNode.predecessor.send("lookupResponse", msg.Origin, "", "", msg.Key)
 		} else {
+			fmt.Println(dhtNode.predecessor.bindAddress + " joining with " + msg.Src)
 			dhtNode.predecessor.send("joinResponse", msg.Origin, "", "", msg.Key)
 		}
 		return
 	}
-	if dhtNode.nodeId == msg.Key || between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) {
+	if between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) {
 		if requestType == "key" {
 			dhtNode.send("lookupResponse", msg.Origin, "", "", msg.Key)
 		} else {
+			fmt.Println(dhtNode.bindAddress + " joining with " + msg.Src)
 			dhtNode.send("joinResponse", msg.Origin, "", "", msg.Key)
 		}
 		return
@@ -228,6 +232,7 @@ func (dhtNode *DHTNode) lookup(requestType string, msg *DHTMsg) {
 		if requestType == "key" {
 			dhtNode.successor.send("lookupResponse", msg.Origin, "", "", msg.Key)
 		} else {
+			fmt.Println(dhtNode.successor.bindAddress + " joining with " + msg.Src)
 			dhtNode.successor.send("joinResponse", msg.Origin, "", "", msg.Key)
 		}
 
