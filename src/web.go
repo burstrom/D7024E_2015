@@ -11,6 +11,7 @@ import (
 )
 
 func (dhtNode *DHTNode) startweb() {
+	fmt.Println("Node #" + dhtNode.nodeId + " , started listening to : " + dhtNode.bindAddress)
 	// Instantiate a new router
 	r := httprouter.New()
 	dhtNodeIP := dhtNode.bindAddress
@@ -29,7 +30,7 @@ func (dhtNode *DHTNode) startweb() {
 
 	r.GET("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		key := p.ByName("key")
-		dhtNode.get(key)
+		dhtNode.get(w, key)
 	})
 
 	r.PUT("/storage/:key", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

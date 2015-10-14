@@ -46,14 +46,14 @@ func TestNet1(t *testing.T) {
 	go node[7].startServer(&wg)
 	wg.Wait()
 
-	go node[0].startweb()
-	go node[1].startweb()
-	go node[2].startweb()
-	go node[3].startweb()
-	go node[4].startweb()
-	go node[5].startweb()
-	go node[6].startweb()
-	go node[7].startweb()
+	// go node[0].startweb()
+	// go node[1].startweb()
+	// go node[2].startweb()
+	// go node[3].startweb()
+	// go node[4].startweb()
+	// go node[5].startweb()
+	// go node[6].startweb()
+	// go node[7].startweb()
 
 	node[1].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
@@ -68,31 +68,44 @@ func TestNet1(t *testing.T) {
 	node[6].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
 	node[7].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 	// go node[1].printAll()
 	// time.Sleep(200 * time.Millisecond)
 
 	// Iterates and updates each nodes fingers.
-	fmt.Println("Setup fingers!")
+	// fmt.Println("Setup fingers!")
 	// go node[0].setupFingers()
+	// fmt.Print("\nSetting up fingers: ")
 	for i := 0; i < 8; i++ {
-		fmt.Println("node", i, ".setupFingers()")
+		// fmt.Print(node[i].nodeId + " ")
 		node[i].queue <- CreateMsg("fingerSetup", node[i].bindAddress, node[i].bindAddress, "", "")
-
 	}
+<<<<<<< HEAD
 	node[1].stabilize()
 	fmt.Println("HEJ!")
 	time.Sleep(800 * time.Millisecond)
 	fmt.Println(node[0].predecessor.bindAddress + " - " + node[0].bindAddress + " - " + node[0].successor.bindAddress)
 	fmt.Println(node[0].FingersToString())
+=======
+	// fmt.Println("\nFinger setup completed")
+	fmt.Println("Waiting for fingers to setup correctly..")
+	fmt.Println(node[0].fingerResponses, ": Responses so far")
+	time.Sleep(400 * time.Millisecond)
+	fmt.Println(node[0].fingerResponses, ": Responses so far")
+	time.Sleep(400 * time.Millisecond)
+	fmt.Println(node[0].fingerResponses, ": Responses so far")
+	// fmt.Println(node[0].predecessor.bindAddress + " - " + node[0].bindAddress + " - " + node[0].successor.bindAddress)
+	// fmt.Println(node[0].FingersToString())
+>>>>>>> d353f1a02a60090dbfcf5273d00d284eb201f17b
 	/*for i := 0; i < bits; i++ {
 		Infoln("Node " + node[i].nodeId + ":" + node[i].FingersToString())
 	}*/
 	time.Sleep(50 * time.Millisecond)
-	fmt.Println("Pre \t Cur \t Suc")
+	// fmt.Println("Pre \t Cur \t Suc")
 	node[0].printAll()
-	time.Sleep(50 * time.Millisecond)
-	// node[1].send("lookup", node[1].bindAddress, "", "50", "")
+	// time.Sleep(50 * time.Millisecond)
+	fmt.Println("Trying a lookup!")
+	node[1].send("lookup", node[1].bindAddress, "", "50", "")
 
 	time.Sleep(15000 * time.Millisecond)
 	// go node[1].printAll()
