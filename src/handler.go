@@ -3,6 +3,7 @@ package dht
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 )
 
@@ -30,7 +31,7 @@ func (dhtNode *DHTNode) upload(key string, value string) {
 	createFile(path, value)
 }
 
-func (dhtNode *DHTNode) get(key string) {
+func (dhtNode *DHTNode) get(w http.ResponseWriter, key string) {
 	path := "storage/" + dhtNode.nodeId + "/" + key + ".txt"
 	fmt.Println(path)
 	bytestring, err := ioutil.ReadFile(path)
@@ -38,7 +39,8 @@ func (dhtNode *DHTNode) get(key string) {
 		fmt.Println(err)
 	} else {
 		str := string(bytestring)
-		fmt.Println(str)
+		//fmt.Println(str)
+		fmt.Fprintln(w, str)
 	}
 }
 
