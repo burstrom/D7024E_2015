@@ -55,6 +55,7 @@ func TestNet1(t *testing.T) {
 	// go node[6].startweb()
 	// go node[7].startweb()
 
+	fmt.Println("All nodes joining eachother!")
 	node[1].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
 	node[2].send("join", node[0].bindAddress, "", "", "")
@@ -70,18 +71,18 @@ func TestNet1(t *testing.T) {
 	node[7].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(250 * time.Millisecond)
 	// go node[1].printAll()
-	// time.Sleep(200 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Iterates and updates each nodes fingers.
-	// fmt.Println("Setup fingers!")
+	fmt.Println("All nodes joined!")
 	// go node[0].setupFingers()
 	// fmt.Print("\nSetting up fingers: ")
 	for i := 0; i < 8; i++ {
-		// fmt.Print(node[i].nodeId + " ")
-		node[i].queue <- CreateMsg("fingerSetup", node[i].bindAddress, node[i].bindAddress, "", "")
+		fmt.Println(node[i].nodeId+"  successor: ", node[i].successor)
+		// node[i].queue <- CreateMsg("fingerSetup", node[i].bindAddress, node[i].bindAddress, "", "")
 	}
-	node[1].stabilize()
-	
+	// node[1].stabilize()
+
 	// fmt.Println("\nFinger setup completed")
 	fmt.Println("Waiting for fingers to setup correctly..")
 	fmt.Println(node[0].fingerResponses, ": Responses so far")
@@ -101,13 +102,14 @@ func TestNet1(t *testing.T) {
 	fmt.Println("Trying a lookup!")
 	node[1].send("lookup", node[1].bindAddress, "", "50", "")
 
-	time.Sleep(15000 * time.Millisecond)
+	// time.Sleep(15000 * time.Millisecond)
 	// go node[1].printAll()
-	time.Sleep(5000 * time.Millisecond)
+	// time.Sleep(5000 * time.Millisecond)
 
 	//Keeps the web servers alive
 	for {
-		time.Sleep(time.Millisecond * 1000)
+		time.Sleep(time.Millisecond * 5000)
+		node[0].printAll()
 	}
 
 	//key string, src string, dst string, bytes string

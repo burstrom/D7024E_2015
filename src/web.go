@@ -46,6 +46,14 @@ func (dhtNode *DHTNode) startweb() {
 		dhtNode.delete(key)
 	})
 
+	r.POST("/kill", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		r.ParseForm()
+		key := r.Form["key"][0]
+		value := r.Form["value"][0]
+		dhtNode.put(key, value)
+		fmt.Fprintln(w, "Key:"+key+" Value:"+value)
+	})
+
 	// Fire up the server
 	http.ListenAndServe(dhtNodeIP, r)
 }

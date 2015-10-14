@@ -31,6 +31,8 @@ type DHTNode struct {
 	bindAddress     string
 	queue           chan *DHTMsg
 	fingerResponses int
+	online          bool
+	lastStab        string
 }
 
 type VNode struct {
@@ -59,7 +61,7 @@ func makeDHTNode(nodeId *string, bindAddress string) *DHTNode {
 	// Added manually:
 	go dhtNode.handler()
 	// fmt.Println("Node: " + bindAddress)
-
+	dhtNode.online = false
 	return dhtNode
 }
 
@@ -73,6 +75,7 @@ func makeVNode(nodeId *string, bindAddress string) *VNode {
 func (dhtNode *DHTNode) startServer(wg *sync.WaitGroup) {
 	wg.Done()
 	go dhtNode.startweb()
+	go dhtNode.timerSomething()
 	dhtNode.listen()
 }
 
@@ -104,7 +107,6 @@ func (node *DHTNode) printQuery(msg *DHTMsg) {
 	}
 }
 
-
 /* 	When a node gets a finger query, it splits the data to get the origin node info and also which index value it should be pointed to.
 Then it sends a response to the origin node with its own ID, Binddress (in the data) comma separated.
 */
@@ -133,6 +135,9 @@ func (dhtNode *DHTNode) fingerResponse(msg *DHTMsg) {
 		fmt.Println(err)
 	}
 	dhtNode.fingers[fIndex] = newNode
+	if dhtNode.fingerResponses == bits {
+		// fmt.Println(dhtNode.nodeId + ".setupFingers() [COMPLETED]")
+	}
 }
 
 func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
@@ -161,7 +166,7 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 			// Infoln("[JOIN]\t" + dhtNode.predecessor.nodeId + "\t" + dhtNode.nodeId + "\t" + dhtNode.successor.nodeId)
 			// fmt.Println("#" + dhtNode.bindAddress + " - join- " + msg.Key)
 		} else {
-			// Should use fingers?
+			// TODO: use fingers if the fingertable is updated/setup?
 			newDHTNode.send("join", dhtNode.successor.bindAddress, "", "", "")
 		}
 	}
@@ -191,39 +196,60 @@ Response MSG = {
 	Data = Node bindadress.
 }
 */
-func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
-	fmt.Println(dhtNode.fingers)
-
+func (dhtNode *DHTNode) lookup(requestType string, msg *DHTMsg) {
+	fmt.Println(dhtNode.nodeId + " got lookup of type: " + requestType + " from " + msg.Key)
+	if dhtNode.nodeId == msg.Key || (dhtNode.predecessor == nil && dhtNode.successor == nil) {
+		if requestType == "key" {
+			dhtNode.send("lookupResponse", msg.Origin, "", "", msg.Key)
+		} else {
+			dhtNode.send("joinResponse", msg.Origin, "", "", msg.Key)
+		}
+		return
+	}
+	// fmt.Println("Trying to debug the problem ", dhtNode.predecessor)
 	// If the node is between Node <- <- Node.successor?
 	if dhtNode.predecessor.nodeId == msg.Key {
-		dhtNode.predecessor.send("lookupResponse", msg.Origin, "", "", msg.Key)
+		if requestType == "key" {
+			dhtNode.predecessor.send("lookupResponse", msg.Origin, "", "", msg.Key)
+		} else {
+			dhtNode.predecessor.send("joinResponse", msg.Origin, "", "", msg.Key)
+		}
 		return
 	}
 	if dhtNode.nodeId == msg.Key || between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) {
-		dhtNode.send("lookupResponse", msg.Origin, "", "", msg.Key)
+		if requestType == "key" {
+			dhtNode.send("lookupResponse", msg.Origin, "", "", msg.Key)
+		} else {
+			dhtNode.send("joinResponse", msg.Origin, "", "", msg.Key)
+		}
 		return
 	}
 	if dhtNode.successor.nodeId == msg.Key {
-		dhtNode.successor.send("lookupResponse", msg.Origin, "", "", msg.Key)
+		if requestType == "key" {
+			dhtNode.successor.send("lookupResponse", msg.Origin, "", "", msg.Key)
+		} else {
+			dhtNode.successor.send("joinResponse", msg.Origin, "", "", msg.Key)
+		}
+
 		return
 	}
 
 	if dhtNode.fingerResponses != bits {
-		dhtNode.send("lookup", dhtNode.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.send(msg.Req, dhtNode.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
 	} else if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[bits-1].nodeId), []byte(msg.Key)) {
-		fmt.Println(dhtNode.nodeId + " got from: " + msg.Src + " with key: " + msg.Key)
+		// fmt.Println(dhtNode.nodeId + " got from: " + msg.Src + " with key: " + msg.Key)
 		for k := bits - 1; k >= 0; k-- {
 			if dhtNode.fingers[k] == nil {
 
 			} else if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[k].nodeId), []byte(msg.Key)) == false {
-				dhtNode.send("lookup", dhtNode.fingers[k].bindAddress, msg.Origin, msg.Key, msg.Data)
+				dhtNode.send(msg.Req, dhtNode.fingers[k].bindAddress, msg.Origin, msg.Key, msg.Data)
 				return
 			}
 		}
-		go dhtNode.send("lookup", dhtNode.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
+		go dhtNode.send(msg.Req, dhtNode.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
 
 	} else {
-		dhtNode.send("lookup", dhtNode.fingers[len(dhtNode.fingers)-1].bindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.send(msg.Req, dhtNode.fingers[len(dhtNode.fingers)-1].bindAddress, msg.Origin, msg.Key, msg.Data)
 	}
 
 }
@@ -275,6 +301,7 @@ func (dhtNode *DHTNode) setupFingers() {
 	// fmt.Println("From node " + dhtNode.nodeId)
 	//kString := ""
 	// fmt.Print("Node " + dhtNode.nodeId + " Fing:")
+	// fmt.Println(dhtNode.nodeId + ".setupFingers()")
 	dhtNode.fingerResponses = 0
 	for k := 0; k < bits; k++ {
 		idBytes, _ := hex.DecodeString(dhtNode.nodeId)
@@ -283,7 +310,10 @@ func (dhtNode *DHTNode) setupFingers() {
 		//fmt.Print(" ' " + fingerHex)
 		kstr := strconv.Itoa(k)
 		// fmt.Println(idBytes, " finger search for "+kstr)
-		dhtNode.send("fingerQuery", dhtNode.successor.bindAddress, "", fingerHex, kstr)
+		if dhtNode.successor != nil {
+			dhtNode.send("fingerQuery", dhtNode.successor.bindAddress, "", fingerHex, kstr)
+		}
+
 	}
 	// fmt.Println("")
 
@@ -359,4 +389,20 @@ func removeDuplicatesUnordered(elements []string) []string {
 		result = append(result, key)
 	}
 	return result
+}
+
+func (node *DHTNode) timerSomething() {
+	k := 0
+	for {
+		if node.successor != nil {
+			node.send("notify", node.successor.bindAddress, "", "", "")
+			/*node.send("PredQuery", node.successor.bindAddress, "", "", node.nodeId+";"+node.bindAddress)*/
+		}
+		if k == 3 {
+			node.queue <- CreateMsg("fingerSetup", node.bindAddress, "", "", "")
+			k = 0
+		}
+		time.Sleep(3000 * time.Millisecond)
+		k++
+	}
 }
