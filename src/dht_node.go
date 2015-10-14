@@ -54,6 +54,7 @@ func makeDHTNode(nodeId *string, bindAddress string) *DHTNode {
 	dhtNode.predecessor = nil
 	// Added manually:
 	go dhtNode.handler()
+	go dhtNode.startweb()
 	return dhtNode
 }
 

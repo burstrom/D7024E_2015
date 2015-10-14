@@ -45,6 +45,15 @@ func TestNet1(t *testing.T) {
 	go node[7].startServer(&wg)
 	wg.Wait()
 
+	go node[0].startweb()
+	go node[1].startweb()
+	go node[2].startweb()
+	go node[3].startweb()
+	go node[4].startweb()
+	go node[5].startweb()
+	go node[6].startweb()
+	go node[7].startweb()
+
 	go node[1].send("join", node[0].bindAddress, "", "", "")
 	time.Sleep(200 * time.Millisecond)
 	go node[2].send("join", node[1].bindAddress, "", "", "")
@@ -79,6 +88,11 @@ func TestNet1(t *testing.T) {
 	time.Sleep(5000 * time.Millisecond)
 	// go node[1].printAll()
 	time.Sleep(5000 * time.Millisecond)
+
+	//Keeps the web servers alive
+	for {
+		time.Sleep(time.Millisecond * 1000)
+	}
 
 	//key string, src string, dst string, bytes string
 }
