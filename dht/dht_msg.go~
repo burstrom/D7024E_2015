@@ -13,7 +13,7 @@ type DHTMsg struct {
 	Key    string `json:"key"`    // Key value
 	Src    string `json:"src"`    // Source of message
 	Req    string `json:"req"`    //destnation
-	Origin string `json:"origin"` // Original sender of message.
+	Origin string `json:"origin"` // Original Sender of message.
 	Data   string `json:"data"`   // Data?
 
 	//Dst    string `json:"dst"`    // Destination of message
@@ -50,8 +50,8 @@ func (node *DHTNode) handler() {
 				Notice(node.nodeId + " Response: " + msg.Data + ", from " + msg.Key + "\n")
 			case "joinResponse":
 				node.predecessor = nil
-				node.successor = makeDHTNode(&msg.Key, msg.Src)
-				node.send("notify", node.successor.bindAddress, "", "", "")
+				node.Successor = MakeDHTNode(&msg.Key, msg.Src)
+				node.Send("notify", node.Successor.BindAddress, "", "", "")
 			case "join":
 				// node.joinRing(msg)
 				msg.Data = "join"
@@ -68,7 +68,7 @@ func (node *DHTNode) handler() {
 			case "fingerResponse":
 				node.fingerResponse(msg)
 			case "printAll":
-				// fmt.Println(node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.successor.nodeId)
+				// fmt.Println(node.predecessor.nodeId + "\t" + node.nodeId + "\t" + node.Successor.nodeId)
 				node.printQuery(msg)
 			case "getPredecessor":
 				node.getPredecessor(msg)
@@ -77,12 +77,12 @@ func (node *DHTNode) handler() {
 			case "notify":
 				node.notify(msg)
 			case "notifyResponse":
-				// Warnln(node.bindAddress + " gets successor " + msg.Src)
-				node.successor = makeDHTNode(&msg.Key, msg.Src)
+				// Warnln(node.BindAddress + " gets Successor " + msg.Src)
+				node.Successor = MakeDHTNode(&msg.Key, msg.Src)
 				// if node.predecessor == nil {
-				// node.predecessor = node.successor
+				// node.predecessor = node.Successor
 				// }
-				// node.successor = makeDHTNode(&msg.Key, msg.Src)
+				// node.Successor = MakeDHTNode(&msg.Key, msg.Src)
 			case "stabilize":
 				node.stabilize(msg)
 			case "kill":
@@ -93,11 +93,11 @@ func (node *DHTNode) handler() {
 	}
 }
 func (dhtNode *DHTNode) getPredecessor(msg *DHTMsg) {
-	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.bindAddress)
+	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.BindAddress)
 	if dhtNode.predecessor == nil {
-		dhtNode.send("StabilizeResponse", msg.Origin, "", "", "")
+		dhtNode.Send("StabilizeResponse", msg.Origin, "", "", "")
 	} else {
-		dhtNode.send("StabilizeResponse", msg.Origin, "", dhtNode.predecessor.nodeId, dhtNode.predecessor.bindAddress)
+		dhtNode.Send("StabilizeResponse", msg.Origin, "", dhtNode.predecessor.nodeId, dhtNode.predecessor.BindAddress)
 	}
 
 }
@@ -106,32 +106,32 @@ func (dhtNode *DHTNode) StabilizeResponse(msg *DHTMsg) {
 	// dhtNode.lastStab = ""
 	// fmt.Println(msg)
 	if dhtNode.predecessor == nil {
-		fmt.Println(dhtNode.bindAddress + " suc: " + dhtNode.successor.bindAddress + " has predecessor: " + msg.Data)
+		fmt.Println(dhtNode.BindAddress + " suc: " + dhtNode.Successor.BindAddress + " has predecessor: " + msg.Data)
 	}
-	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.bindAddress)
-	// src := dhtNode.bindAddress
+	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.BindAddress)
+	// src := dhtNode.BindAddress
 	// key := strings.Split(msg.Data, ";")
-	if (between([]byte(dhtNode.nodeId), []byte(dhtNode.successor.nodeId), []byte(msg.Key)) && dhtNode.nodeId != msg.Key) || msg.Key == "" {
+	if (between([]byte(dhtNode.nodeId), []byte(dhtNode.Successor.nodeId), []byte(msg.Key)) && dhtNode.nodeId != msg.Key) || msg.Key == "" {
 
 		// temp := strings.Split(msg.Data, ";")
-		dhtNode.successor.nodeId = msg.Key
-		dhtNode.successor.bindAddress = msg.Data
+		dhtNode.Successor.nodeId = msg.Key
+		dhtNode.Successor.BindAddress = msg.Data
 
 	} else {
 		// fmt.Println(node0)
-		dhtNode.send("getPredecessor", msg.Data, "", "", "")
+		dhtNode.Send("getPredecessor", msg.Data, "", "", "")
 	}
-	dhtNode.send("notify", dhtNode.successor.bindAddress, "", "", "")
-	// dhtNode.send("notify", dhtNode.successor.bindAddress, dhtNode.successor.nodeId+";"+dhtNode.successor.bindAddress)
+	dhtNode.Send("notify", dhtNode.Successor.BindAddress, "", "", "")
+	// dhtNode.Send("notify", dhtNode.Successor.BindAddress, dhtNode.Successor.nodeId+";"+dhtNode.Successor.BindAddress)
 
 }
 func (dhtNode *DHTNode) stabilize(msg *DHTMsg) {
-	// fmt.Println(dhtNode.bindAddress + " stabilize, successor : " + dhtNode.successor.bindAddress)
-	dhtNode.send("getPredecessor", dhtNode.successor.bindAddress, "", "", "")
-	// dhtNode.lastStab = dhtNode.successor.bindAddress
+	// fmt.Println(dhtNode.BindAddress + " stabilize, Successor : " + dhtNode.Successor.BindAddress)
+	dhtNode.Send("getPredecessor", dhtNode.Successor.BindAddress, "", "", "")
+	// dhtNode.lastStab = dhtNode.Successor.BindAddress
 	// time.Sleep(50 * time.Millisecond)
 	// if dhtNode.lastStab != "" {
-	// redo the stabilize but for the next successor in the succerlist.
+	// redo the stabilize but for the next Successor in the succerlist.
 	// }
 }
 
@@ -141,26 +141,26 @@ func (dhtNode *DHTNode) notify(msg *DHTMsg) {
 		// fmt.Println(dhtNode.nodeId + ".Notify(" + msg.Key + ")")
 
 		temp := dhtNode.predecessor
-		dhtNode.predecessor = makeDHTNode(&msg.Key, msg.Src)
-		if dhtNode.successor == nil {
-			dhtNode.successor = dhtNode.predecessor
+		dhtNode.predecessor = MakeDHTNode(&msg.Key, msg.Src)
+		if dhtNode.Successor == nil {
+			dhtNode.Successor = dhtNode.predecessor
 		}
-		dhtNode.send("notifyResponse", dhtNode.predecessor.bindAddress, "", "", "")
+		dhtNode.Send("notifyResponse", dhtNode.predecessor.BindAddress, "", "", "")
 
 		// time.Sleep(50 * time.Millisecond)
 		if temp != nil {
-			dhtNode.send("PredQueryResponse", temp.bindAddress, "", "", dhtNode.predecessor.nodeId+";"+dhtNode.predecessor.bindAddress)
+			dhtNode.Send("PredQueryResponse", temp.BindAddress, "", "", dhtNode.predecessor.nodeId+";"+dhtNode.predecessor.BindAddress)
 		}
 		// temp := strings.Split(msg.Data, ";")
 		// dhtNode.predecessor.nodeId = temp[0]
-		// dhtNode.predecessor.bindAddress = temp[1]
-		// Notice(dhtNode.predecessor.nodeId + "\t" + dhtNode.nodeId + "\t" + dhtNode.successor.nodeId)
+		// dhtNode.predecessor.BindAddress = temp[1]
+		// Notice(dhtNode.predecessor.nodeId + "\t" + dhtNode.nodeId + "\t" + dhtNode.Successor.nodeId)
 	}
 	return
 }
 
 func (node *DHTNode) listen() {
-	udpAddr, err := net.ResolveUDPAddr("udp", node.bindAddress)
+	udpAddr, err := net.ResolveUDPAddr("udp", node.BindAddress)
 	conn, err := net.ListenUDP("udp", udpAddr)
 	node.online = true
 	defer conn.Close()
@@ -169,7 +169,7 @@ func (node *DHTNode) listen() {
 	}
 	dec := json.NewDecoder(conn)
 	// fmt.Println("Started listening : " + node.bindAdress)
-	Error("Started listening : " + node.bindAddress + "\n")
+	Error("Started listening : " + node.BindAddress + "\n")
 
 	for {
 		if node.online {
