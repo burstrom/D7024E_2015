@@ -48,18 +48,18 @@ func makeDHTNode(nodeId *string, bindAddress string) *DHTNode {
 	dhtNode.bindAddress = bindAddress
 	dhtNode.queue = make(chan *DHTMsg)
 	//No ID? Let's generate one.
-	// dhtNode.nodeId = generateNodeId(bindAddress)
+	dhtNode.nodeId = generateNodeId(bindAddress)
 	// if nodeId == nil {
-	genNodeId := generateNodeId(*nodeId)
-	dhtNode.nodeId = genNodeId
+	// genNodeId := generateNodeId(*nodeId)
+	// dhtNode.nodeId = genNodeId
 	// } else {
-	// 	dhtNode.nodeId = *nodeId
+	// dhtNode.nodeId = *nodeId
 	// }
 	dhtNode.successor = nil
 	dhtNode.predecessor = nil
 	dhtNode.fingerResponses = 0
 	// Added manually:
-	go dhtNode.handler()
+
 	// fmt.Println("Node: " + bindAddress)
 	dhtNode.online = false
 	return dhtNode
@@ -74,6 +74,7 @@ func makeVNode(nodeId *string, bindAddress string) *VNode {
 
 func (dhtNode *DHTNode) startServer(wg *sync.WaitGroup) {
 	wg.Done()
+	go dhtNode.handler()
 	go dhtNode.startweb()
 	go dhtNode.timerSomething()
 	dhtNode.listen()
@@ -94,17 +95,17 @@ func (dhtNode *DHTNode) updateNode(msg *DHTMsg) {
 func (node *DHTNode) printQuery(msg *DHTMsg) {
 	// fmt.Println("Node " + node.nodeId + " got [PRINT]")
 	// fts := node.FingersToString()
-
+	Infoln(node.predecessor.bindAddress + " - " + node.bindAddress + " - " + node.successor.bindAddress)
 	if msg.Origin != node.bindAddress {
-		msg.Data = msg.Data + node.predecessor.bindAddress + "\t" + node.bindAddress + "\t" + node.successor.bindAddress + "\t\n"
+		// msg.Data = msg.Data + node.predecessor.bindAddress + "\t" + node.bindAddress + "\t" + node.successor.bindAddress + "\t\n"
 		node.send("printAll", node.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
-
-	} else {
-		str := "Pre.\tNode\tSucc.\n" + msg.Data + node.predecessor.bindAddress + "\t" + node.bindAddress + "\t" + node.successor.bindAddress + "\t\n"
-		Noticeln(str)
-		//fmt.Print(str)
-		//fmt.Print(msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers+"\n", "")
 	}
+	// } else {
+	// str := "Pre.\tNode\tSucc.\n" + msg.Data + node.predecessor.bindAddress + "\t" + node.bindAddress + "\t" + node.successor.bindAddress + "\t\n"
+	// Noticeln(str)
+	//fmt.Print(str)
+	//fmt.Print(msg.Data+"\n"+node.predecessor.nodeId+"\t"+node.nodeId+"\t"+node.successor.nodeId+"\t"+fingers+"\n", "")
+	// }
 }
 
 /* 	When a node gets a finger query, it splits the data to get the origin node info and also which index value it should be pointed to.
@@ -179,6 +180,7 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 
 func (dhtNode *DHTNode) printAll() {
 	if dhtNode.successor != nil {
+		Infoln("Pre \t\t Cur \t\t Suc")
 		dhtNode.send("printAll", dhtNode.successor.bindAddress, "", "", "")
 	}
 
@@ -196,49 +198,28 @@ Response MSG = {
 	Data = Node bindadress.
 }
 */
-func (dhtNode *DHTNode) lookup(requestType string, msg *DHTMsg) {
+func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 	// fmt.Println(dhtNode.bindAddress + " got lookup of type: " + requestType + " from " + msg.Src)
-	if (dhtNode.nodeId == msg.Key) || (dhtNode.predecessor == nil && dhtNode.successor == nil) {
+	if dhtNode.predecessor != nil && dhtNode.predecessor.nodeId == msg.Key {
+		dhtNode.send(msg.Req, dhtNode.predecessor.bindAddress, msg.Origin, msg.Key, msg.Data)
+		return
+	}
 
-		if requestType == "key" {
-			dhtNode.send("lookupResponse", msg.Origin, "", "", msg.Key)
-		} else {
-			fmt.Println(dhtNode.bindAddress + " joining with " + msg.Src)
-			dhtNode.send("joinResponse", msg.Origin, "", "", msg.Key)
-		}
+	if (dhtNode.nodeId == msg.Key) || (dhtNode.predecessor == nil && dhtNode.successor == nil) {
+		dhtNode.send(msg.Data+"Response", msg.Origin, "", "", msg.Key)
 		return
 	}
 	// fmt.Println("Trying to debug the problem ", dhtNode.predecessor)
-	// If the node is between Node <- <- Node.successor?
-	if dhtNode.predecessor.nodeId == msg.Key {
-		if requestType == "key" {
-			dhtNode.predecessor.send("lookupResponse", msg.Origin, "", "", msg.Key)
-		} else {
-			fmt.Println(dhtNode.predecessor.bindAddress + " joining with " + msg.Src)
-			dhtNode.predecessor.send("joinResponse", msg.Origin, "", "", msg.Key)
-		}
-		return
-	}
-	if between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) {
-		if requestType == "key" {
-			dhtNode.send("lookupResponse", msg.Origin, "", "", msg.Key)
-		} else {
-			fmt.Println(dhtNode.bindAddress + " joining with " + msg.Src)
-			dhtNode.send("joinResponse", msg.Origin, "", "", msg.Key)
-		}
-		return
-	}
-	if dhtNode.successor.nodeId == msg.Key {
-		if requestType == "key" {
-			dhtNode.successor.send("lookupResponse", msg.Origin, "", "", msg.Key)
-		} else {
-			fmt.Println(dhtNode.successor.bindAddress + " joining with " + msg.Src)
-			dhtNode.successor.send("joinResponse", msg.Origin, "", "", msg.Key)
-		}
+	// If the key is equal to its prdecessor
 
+	if dhtNode.predecessor != nil && between([]byte(dhtNode.predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) { // if the key is between the nodes predecessor and itself.
+		dhtNode.send(msg.Data+"Response", msg.Origin, "", "", msg.Key)
 		return
 	}
-
+	if between([]byte(dhtNode.nodeId), []byte(dhtNode.successor.nodeId), []byte(msg.Key)) {
+		dhtNode.send(msg.Req, dhtNode.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
+		return
+	}
 	if dhtNode.fingerResponses != bits {
 		dhtNode.send(msg.Req, dhtNode.successor.bindAddress, msg.Origin, msg.Key, msg.Data)
 	} else if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[bits-1].nodeId), []byte(msg.Key)) {
@@ -314,6 +295,7 @@ func (dhtNode *DHTNode) setupFingers() {
 		fingerHex, _ := calcFinger(idBytes, k, bits)
 		//fmt.Print(" ' " + fingerHex)
 		kstr := strconv.Itoa(k)
+		// time.Sleep(50 * time.Millisecond)
 		// fmt.Println(idBytes, " finger search for "+kstr)
 		if dhtNode.successor != nil {
 			dhtNode.send("fingerQuery", dhtNode.successor.bindAddress, "", fingerHex, kstr)
@@ -400,14 +382,16 @@ func (node *DHTNode) timerSomething() {
 	k := 0
 	for {
 		if node.successor != nil {
-			node.send("notify", node.successor.bindAddress, "", "", "")
+			// node.send("notify", node.successor.bindAddress, "", "", "")
+			node.send("getPredecessor", node.successor.bindAddress, "", "", "")
 			/*node.send("PredQuery", node.successor.bindAddress, "", "", node.nodeId+";"+node.bindAddress)*/
 		}
 		if k == 3 {
-			node.queue <- CreateMsg("fingerSetup", node.bindAddress, "", "", "")
+			// Warnln("Timer reset...")
+			node.send("fingerSetup", node.bindAddress, "", "", "")
 			k = 0
 		}
-		time.Sleep(3000 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 		k++
 	}
 }

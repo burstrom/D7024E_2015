@@ -57,19 +57,19 @@ func TestNet1(t *testing.T) {
 
 	fmt.Println("All nodes joining eachother!")
 	node[1].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	node[2].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	node[3].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	node[4].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	node[5].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	node[6].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	node[7].send("join", node[0].bindAddress, "", "", "")
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(450 * time.Millisecond)
 	// go node[1].printAll()
 	time.Sleep(200 * time.Millisecond)
 
@@ -78,38 +78,53 @@ func TestNet1(t *testing.T) {
 	// go node[0].setupFingers()
 	// fmt.Print("\nSetting up fingers: ")
 	for i := 0; i < 8; i++ {
-		fmt.Println(node[i].nodeId+"  successor: ", node[i].successor)
+		node[i].fingerResponses = 0
+		// fmt.Println(node[i].nodeId+"  successor: ", node[i].successor)
 		// node[i].queue <- CreateMsg("fingerSetup", node[i].bindAddress, node[i].bindAddress, "", "")
+		// time.Sleep(50 * time.Millisecond)
 	}
 	// node[1].stabilize()
 
 	// fmt.Println("\nFinger setup completed")
-	fmt.Println("Waiting for fingers to setup correctly..")
-	fmt.Println(node[0].fingerResponses, ": Responses so far")
-	time.Sleep(400 * time.Millisecond)
-	fmt.Println(node[0].fingerResponses, ": Responses so far")
-	time.Sleep(400 * time.Millisecond)
-	fmt.Println(node[0].fingerResponses, ": Responses so far")
+	// fmt.Println("Waiting for fingers to setup correctly..")
+	// fmt.Println(node[0].fingerResponses, ": Responses so far")
+	time.Sleep(900 * time.Millisecond)
+	// fmt.Println(node[0].fingerResponses, ": Responses so far")
+	// time.Sleep(400 * time.Millisecond)
+	// fmt.Println(node[0].fingerResponses, ": Responses so far")
 	// fmt.Println(node[0].predecessor.bindAddress + " - " + node[0].bindAddress + " - " + node[0].successor.bindAddress)
 	// fmt.Println(node[0].FingersToString())
-	/*for i := 0; i < bits; i++ {
-		Infoln("Node " + node[i].nodeId + ":" + node[i].FingersToString())
-	}*/
+
 	time.Sleep(50 * time.Millisecond)
-	// fmt.Println("Pre \t Cur \t Suc")
-	node[0].printAll()
+	//
+	// node[0].printAll()
 	// time.Sleep(50 * time.Millisecond)
-	fmt.Println("Trying a lookup!")
-	node[1].send("lookup", node[1].bindAddress, "", "50", "")
+	// fmt.Println("Trying a lookup!")
+	// time.Sleep(time.Millisecond * 5000)
 
 	// time.Sleep(15000 * time.Millisecond)
-	// go node[1].printAll()
+	// go node[0].printAll()
 	// time.Sleep(5000 * time.Millisecond)
-
+	// node[1].send("lookup", node[1].bindAddress, "", "50", "")
 	//Keeps the web servers alive
 	for {
-		time.Sleep(time.Millisecond * 5000)
-		node[0].printAll()
+		Error("\nPre \t\t Cur \t\t Suc\t\t\t")
+		Warnln("Fingers")
+		for i := 0; i < 8; i++ {
+			if node[i].predecessor == nil && node[i].successor == nil {
+				Notice("\tnil\t- " + node[i].bindAddress + " - nil\t-")
+			} else if node[i].predecessor == nil {
+				Notice("\tnil\t- " + node[i].bindAddress + " - " + node[i].successor.bindAddress)
+			} else if node[i].successor == nil {
+				Notice(node[i].predecessor.bindAddress + "\t- " + node[i].bindAddress + " -\t nil")
+			} else {
+				Notice(node[i].predecessor.bindAddress + "\t- " + node[i].bindAddress + " - " + node[i].successor.bindAddress)
+			}
+			Warn("\t" + node[i].FingersToString() + "\n")
+			time.Sleep(20 * time.Millisecond)
+		}
+		time.Sleep(time.Millisecond * 4000)
+		// node[0].printAll()
 	}
 
 	//key string, src string, dst string, bytes string
