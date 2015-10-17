@@ -1,7 +1,8 @@
 # D7024E_2015 [![Build Status](http://luxxorina.luxxor.se:9980/buildStatus/icon?job=D7024E-Distributedsomething)](http://luxxorina.luxxor.se:8888/job/D7024E-Distributedsomething)
 
 ### Objective 2:
-- [ ] In the joinRing() method. the join should use fingerlookup to know which place the node should be added.
+- [x] Stabilize func
+- [x] Notify func
 
 ### Objective 3:
 - [ ] Data replication between nodes
