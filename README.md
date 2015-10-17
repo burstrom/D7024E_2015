@@ -1,8 +1,8 @@
 # D7024E_2015 [![Build Status](http://luxxorina.luxxor.se:9980/buildStatus/icon?job=D7024E-Distributedsomething)](http://luxxorina.luxxor.se:8888/job/D7024E-Distributedsomething)
 
 ### Objective 2:
-- [x] Stabilize func
-- [x] Notify func
+- [x] Stabilize function
+- [x] Notify function
 
 ### Objective 3:
 - [ ] Data replication between nodes
@@ -10,12 +10,13 @@
 - [ ] Kill post to the API which stops the node. (It can come back online after some time)
 
 ### Objective 4:
-- [ ] Tests to show functionality of the web service (Use POSTMAN)
-- [ ] Update the API so it correctly updates the DHT with Key - Location(value) and creates the file with the data.
+- [x] Tests to show functionality of the web service (Use POSTMAN)
+- [x] Update the API so it correctly updates the DHT with Key - Location(value) and creates the file with the data.
+- [ ] Integration with Chord DHT
 
 ### Objective 5:
-- [ ] Create using docker container/image.
-- [ ] Get the docker to run
+- [ ] Package previously developed Skynodes as a Docker container
+- [ ] Deplou clusters of Skynodes with Kubernetes
 
 ### Project Report:
 - [ ] Update for each Objective 2
