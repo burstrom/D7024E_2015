@@ -18,6 +18,7 @@ import (
 	<ACTIVE THREADS>
 		* go dhtNode.handler() which loops and handles all DHTMessages which is added to the queue
 		* go dhtNode.listen() which loops and listens on a specific port.
+		* go dhtNode.web() which handles all http messages.
 */
 
 var counter = 0
