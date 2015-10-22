@@ -17,12 +17,7 @@ func exists(name string) bool {
 	return true
 }
 
-//Uploads
 func (dhtNode *DHTNode) upload(key string, value string) {
-	//stringlist := strings.Split(msg.Data)
-	//key := stringlist[0]
-	//value := stringlist[1]
-
 	path := "storage/" + dhtNode.nodeId + "/"
 	if !exists(path) {
 		os.MkdirAll(path, 0777)
