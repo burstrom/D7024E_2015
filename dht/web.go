@@ -24,8 +24,8 @@ func (dhtNode *DHTNode) startweb() {
 		r.ParseForm()
 		key := r.Form["key"][0]
 		value := r.Form["value"][0]
-		dhtNode.put(key, value)
-		fmt.Fprintln(w, "Key:"+key+" Value:"+value)
+		dhtNode.Send("upload", dhtNode.BindAddress, "", key, "")
+
 	})
 
 	r.GET("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -33,12 +33,20 @@ func (dhtNode *DHTNode) startweb() {
 		dhtNode.get(w, key)
 	})
 
-	r.PUT("/storage/:key", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	r.PUT("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		r.ParseForm()
-		key := r.Form["key"][0]
+		key := p.ByName("key")
 		value := r.Form["value"][0]
-		dhtNode.upload(key, value)
+		//dhtNode.lookup(CreateMsg("lookup", dhtNode.nodeId, dhtNode.BindAddress, generateNodeId(key), ""))
 		//fmt.Fprint(w, "This should return the payload of the key!\n")
+		dhtNode.hashMap(key[value])
+		for {
+			select {
+			case httpresponse := <-dhtNode.httpResponse:
+				fmt.Println(httpresponse)
+				stringlist := string.Split(httpresponse, ",")
+			}
+		}
 	})
 
 	r.DELETE("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {

@@ -61,6 +61,16 @@ func (node *DHTNode) handler() {
 			case "lookup":
 				msg.Data = "lookup"
 				node.lookup(msg)
+			case "upload":
+				if node.responsible(generateNodeId(msg.Key)) {
+					// download data to node.
+				} else {
+					msg.Data = "upload"
+					node.lookup(msg)
+				}
+			case "uploadResponse":
+				//Utifrån msgID, vidarebefordra meddelandet från client till msg.src
+				//K
 			case "fingerQuery":
 				node.fingerQuery(msg)
 			case "fingerSetup":

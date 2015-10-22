@@ -33,6 +33,7 @@ type DHTNode struct {
 	FingerResponses int
 	online          bool
 	lastStab        string
+	hashMap         map[string]string
 }
 
 type VNode struct {
@@ -351,14 +352,11 @@ func (dhtNode *DHTNode) SendFrwd(msg *DHTMsg, dstNode *DHTNode) {
 
 func (dhtNode *DHTNode) responsible(key string) bool {
 	// key == dhtnode?
-	if bytes.Compare([]byte(dhtNode.nodeId), []byte(key)) == 0 {
-		return true
+	if bytes.Compare([]byte(dhtNode.Predecessor.nodeId), []byte(key)) == 0 {
+		return false
 	}
 	// If key > Predecessor or <= dhtnode
-	if bytes.Compare([]byte(dhtNode.Predecessor.nodeId), []byte(key)) == -1 || bytes.Compare([]byte(dhtNode.nodeId), []byte(key)) >= 0 {
-		return between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(key))
-	}
-	return false
+	return between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(key))
 
 }
 
