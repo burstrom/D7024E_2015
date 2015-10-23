@@ -5,7 +5,7 @@ import (
 	"fmt"
 	//"html/template"
 	"net/http"
-
+	"time"
 	// Third party packages
 	"github.com/julienschmidt/httprouter"
 )
@@ -24,7 +24,15 @@ func (dhtNode *DHTNode) startweb() {
 		r.ParseForm()
 		key := r.Form["key"][0]
 		value := r.Form["value"][0]
-		dhtNode.Send("upload", dhtNode.BindAddress, "", key, value)
+		msgId := generateNodeId("upload" + dhtNode.BindAddress + r.Host)
+		dhtNode.Send2(msgId, "upload", dhtNode.BindAddress, "", key, value)
+		dhtNode.hashMap[msgId] = w
+		time.Sleep(500 * time.Millisecond)
+		rw := dhtNode.hashMap[msgId]
+		if rw != nil {
+			w.WriteHeader(418)
+			fmt.Fprint(w, "Couldn't upload file, an error occured")
+		}
 	})
 
 	r.GET("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {

@@ -1,11 +1,12 @@
 package dht
 
 import (
-	"bytes"
+	// "bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,7 +35,7 @@ type DHTNode struct {
 	FingerResponses int
 	online          bool
 	lastStab        string
-	hashMap         map[string]string
+	hashMap         map[string]http.ResponseWriter
 }
 
 type VNode struct {
@@ -69,6 +70,7 @@ func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
 
 	// fmt.Println("Node: " + BindAddress)
 	dhtNode.online = false
+	dhtNode.hashMap = make(map[string]http.ResponseWriter)
 	return dhtNode
 }
 
@@ -208,27 +210,27 @@ Response MSG = {
 func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 	// fmt.Println(dhtNode.BindAddress + " got lookup of type: " + requestType + " from " + msg.Src)
 	if dhtNode.Predecessor != nil && dhtNode.Predecessor.nodeId == msg.Key {
-		dhtNode.Send(msg.Req, dhtNode.Predecessor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Predecessor.BindAddress, msg.Origin, msg.Key, msg.Data)
 		return
 	}
 
 	if (dhtNode.nodeId == msg.Key) || (dhtNode.Predecessor == nil && dhtNode.Successor == nil) {
-		dhtNode.Send(msg.Data+"Response", msg.Origin, "", "", msg.Key)
+		dhtNode.Send2(msg.MsgId, msg.Data+"Response", msg.Origin, "", "", msg.Key)
 		return
 	}
 	// fmt.Println("Trying to debug the problem ", dhtNode.Predecessor)
 	// If the key is equal to its prdecessor
 
 	if dhtNode.Predecessor != nil && between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) { // if the key is between the nodes Predecessor and itself.
-		dhtNode.Send(msg.Data+"Response", msg.Origin, "", "", msg.Key)
+		dhtNode.Send2(msg.MsgId, msg.Data+"Response", msg.Origin, "", "", msg.Key)
 		return
 	}
 	if between([]byte(dhtNode.nodeId), []byte(dhtNode.Successor.nodeId), []byte(msg.Key)) {
-		dhtNode.Send(msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 		return
 	}
 	if dhtNode.FingerResponses != bits {
-		dhtNode.Send(msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 	} else if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[bits-1].nodeId), []byte(msg.Key)) {
 		// fmt.Println(dhtNode.nodeId + " got from: " + msg.Src + " with key: " + msg.Key)
 		for k := bits - 1; k >= 0; k-- {
@@ -239,10 +241,10 @@ func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 				return
 			}
 		}
-		go dhtNode.Send(msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		go dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 
 	} else {
-		dhtNode.Send(msg.Req, dhtNode.fingers[len(dhtNode.fingers)-1].BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.fingers[len(dhtNode.fingers)-1].BindAddress, msg.Origin, msg.Key, msg.Data)
 	}
 
 }
@@ -313,6 +315,30 @@ func (dhtNode *DHTNode) setupFingers() {
 
 }
 
+func (dhtNode *DHTNode) Send2(msgId, req, dst, origin, key, data string) {
+	// If the origin is empty, then it becomes the DHTNodes bind adress since it was the one who sent the first.
+	/*if req == "LookupResponse" {
+		fmt.Println("dst: " + dst + ", origin: " + origin + ", key: " + key + ", data: " + data)
+	}*/
+	if key == "" {
+		key = dhtNode.nodeId
+	}
+	if origin == "" {
+		origin = dhtNode.BindAddress
+	}
+	msg := CreateMsg(req, dhtNode.BindAddress, origin, key, data)
+	msg.MsgId = msgId
+
+	udpAddr, err := net.ResolveUDPAddr("udp", dst)
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	defer conn.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	res, _ := json.Marshal(msg)
+	_, err = conn.Write(res) // wat?
+}
+
 func (dhtNode *DHTNode) Send(req, dst, origin, key, data string) {
 	// If the origin is empty, then it becomes the DHTNodes bind adress since it was the one who sent the first.
 	/*if req == "LookupResponse" {
@@ -358,12 +384,19 @@ func (dhtNode *DHTNode) SendFrwd(msg *DHTMsg, dstNode *DHTNode) {
 
 func (dhtNode *DHTNode) responsible(key string) bool {
 	// key == dhtnode?
-	if bytes.Compare([]byte(dhtNode.Predecessor.nodeId), []byte(key)) == 0 {
+	// fmt.Println("Responsible: " + key + " N: " + dhtNode.nodeId + ", P: " + dhtNode.Predecessor.nodeId)
+	// Checks if the key is equals to my predecessor?
+	if dhtNode.Predecessor != nil && dhtNode.Predecessor.nodeId == key {
 		return false
 	}
-	// If key > Predecessor or <= dhtnode
-	return between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(key))
-
+	// checks if the key is equals to my key?
+	if dhtNode.nodeId == key {
+		return true
+	}
+	if dhtNode.Predecessor != nil && between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(key)) { // if the key is between the nodes Predecessor and itself.
+		return true
+	}
+	return false
 }
 
 func removeDuplicatesUnordered(elements []string) []string {

@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	// "net/http"
 	// "strings"
 	"time" // added time method
 )
 
 type DHTMsg struct {
 	//Timestamp int64  `json:"time"`
+	MsgId  string `json:"msgid"`
 	Key    string `json:"key"`    // Key value
 	Src    string `json:"src"`    // Source of message
 	Req    string `json:"req"`    //destnation
@@ -31,6 +33,7 @@ func CreateMsg(req, src, origin, key, data string) *DHTMsg {
 	dhtMsg.Origin = origin
 	dhtMsg.Data = data
 	dhtMsg.Req = req
+	dhtMsg.MsgId = ""
 	/*Req := strings.Split(req, ",")
 	for key := range Req {
 		fmt.Println("Key:", key)
@@ -64,12 +67,24 @@ func (node *DHTNode) handler() {
 			case "upload":
 				if node.responsible(generateNodeId(msg.Key)) {
 					node.upload(msg.Key, msg.Data)
+					Errorln("\n Filename: " + msg.Key + "\n" + msg.Data)
 					node.Send("replicate", node.Successor.BindAddress, node.BindAddress, msg.Key, msg.Data)
+					node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, "")
 				} else {
 					msg.Data = "upload"
 					node.lookup(msg)
 				}
 			case "uploadResponse":
+				w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+				if w != nil {
+					// fmt.Println("\nSending upload response!")
+					w.WriteHeader(305)
+					fmt.Fprint(w, "Uploaded on address "+msg.Src+"/"+msg.Key+"\n")
+					// http.Redirect(w, http.Get)
+					delete(node.hashMap, msg.MsgId)
+				} else {
+					Warnln("Got uploadResponse but no message in hashmap?")
+				}
 
 			case "replicate":
 				if msg.Src == node.Predecessor.BindAddress {

@@ -1,11 +1,10 @@
-package main
+package dht
 
 import (
 	"fmt"
+	"github.com/burstrom/D7024E_2015/dht"
 	"sync"
 	"time"
-	"github.com/burstrom/D7024E_2015/dht"
-	
 )
 
 func main() {
