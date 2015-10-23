@@ -63,14 +63,21 @@ func (node *DHTNode) handler() {
 				node.lookup(msg)
 			case "upload":
 				if node.responsible(generateNodeId(msg.Key)) {
-					// download data to node.
+					node.upload(msg.Key, msg.Data)
+					node.Send("replicate", node.Successor.BindAddress, node.BindAddress, msg.Key, msg.Data)
 				} else {
 					msg.Data = "upload"
 					node.lookup(msg)
 				}
 			case "uploadResponse":
-				//Utifrån msgID, vidarebefordra meddelandet från client till msg.src
-				//K
+
+			case "replicate":
+				if msg.Src == node.Predecessor.BindAddress {
+					node.upload(msg.Key, msg.Data)
+				} else {
+					//Not correct predecessor, should never happen
+					node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+				}
 			case "fingerQuery":
 				node.fingerQuery(msg)
 			case "fingerSetup":

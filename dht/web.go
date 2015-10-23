@@ -22,10 +22,9 @@ func (dhtNode *DHTNode) startweb() {
 
 	r.POST("/storage", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		r.ParseForm()
-		// key := r.Form["key"][0]
-		// value := r.Form["value"][0]
-		// dhtNode.Send("upload", dhtNode.BindAddress, "", key, "")
-
+		key := r.Form["key"][0]
+		value := r.Form["value"][0]
+		dhtNode.Send("upload", dhtNode.BindAddress, "", key, value)
 	})
 
 	r.GET("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {

@@ -44,6 +44,11 @@ type VNode struct {
 }
 
 func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
+	// Hash table
+	// I suspect we need something similar to this:
+	// hashMap[msg.Key] = msg.Data
+	// We then populate the hash table with all keys and values that exist in the Sky cloud.
+
 	// Defines the node, and adds the tuple values of IP and Port.
 	dhtNode := new(DHTNode)
 	//dhtNode.transport = CreateTransport(dhtNode, ip+":"+port)
