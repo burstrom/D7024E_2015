@@ -215,14 +215,24 @@ func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 	}
 
 	if (dhtNode.nodeId == msg.Key) || (dhtNode.Predecessor == nil && dhtNode.Successor == nil) {
-		dhtNode.Send2(msg.MsgId, msg.Data+"Response", msg.Origin, "", "", msg.Key)
+		dhtNode.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+		if msg.Req == "upload" {
+			data := strings.Split(msg.Data, ";")
+			dhtNode.upload(data[0], data[1])
+			dhtNode.Send("replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
+		}
 		return
 	}
 	// fmt.Println("Trying to debug the problem ", dhtNode.Predecessor)
 	// If the key is equal to its prdecessor
 
 	if dhtNode.Predecessor != nil && between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) { // if the key is between the nodes Predecessor and itself.
-		dhtNode.Send2(msg.MsgId, msg.Data+"Response", msg.Origin, "", "", msg.Key)
+		dhtNode.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+		if msg.Req == "upload" {
+			data := strings.Split(msg.Data, ";")
+			dhtNode.upload(data[0], data[1])
+			dhtNode.Send("replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
+		}
 		return
 	}
 	if between([]byte(dhtNode.nodeId), []byte(dhtNode.Successor.nodeId), []byte(msg.Key)) {

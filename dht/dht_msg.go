@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 	// "net/http"
-	// "strings"
+	"strings"
 	"time" // added time method
 )
 
@@ -57,29 +57,34 @@ func (node *DHTNode) handler() {
 				node.Send("notify", node.Successor.BindAddress, "", "", "")
 			case "join":
 				// node.joinRing(msg)
-				msg.Data = "join"
+				// msg.Data = "join"
 				node.lookup(msg)
 			case "update":
 				node.updateNode(msg)
 			case "lookup":
-				msg.Data = "lookup"
+				// msg.Data = "lookup"
 				node.lookup(msg)
 			case "upload":
-				if node.responsible(generateNodeId(msg.Key)) {
-					node.upload(msg.Key, msg.Data)
-					Errorln("\n Filename: " + msg.Key + "\n" + msg.Data)
+				fmt.Println("\n", msg)
+				fmt.Println("\n -> " + node.BindAddress)
+				// hashedValue := generateNodeId(msg.Key)
+				if node.responsible(msg.Key) {
+					// This code is only accessed if you contact the correct node directly.
+					data := strings.Split(msg.Data, ";")
+					node.upload(data[0], data[1])
+					fmt.Println("\n Filename: " + data[0] + "\n" + data[1])
 					node.Send("replicate", node.Successor.BindAddress, node.BindAddress, msg.Key, msg.Data)
-					node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, "")
+					node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
 				} else {
-					msg.Data = "upload"
 					node.lookup(msg)
 				}
 			case "uploadResponse":
 				w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
 				if w != nil {
 					// fmt.Println("\nSending upload response!")
-					w.WriteHeader(305)
-					fmt.Fprint(w, "Uploaded on address "+msg.Src+"/"+msg.Key+"\n")
+					w.WriteHeader(302)
+					data := strings.Split(msg.Data, ";")
+					fmt.Fprint(w, "Uploaded on address "+msg.Src+"/"+data[0]+"\n")
 					// http.Redirect(w, http.Get)
 					delete(node.hashMap, msg.MsgId)
 				} else {
@@ -88,7 +93,9 @@ func (node *DHTNode) handler() {
 
 			case "replicate":
 				if msg.Src == node.Predecessor.BindAddress {
-					node.upload(msg.Key, msg.Data)
+					data := strings.Split(msg.Data, ";")
+					node.upload(data[0], data[1])
+					// node.upload(msg.Key, msg.Data)
 				} else {
 					//Not correct predecessor, should never happen
 					node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")

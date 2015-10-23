@@ -5,6 +5,7 @@ import (
 	"fmt"
 	//"html/template"
 	"net/http"
+	// "strconv"
 	"time"
 	// Third party packages
 	"github.com/julienschmidt/httprouter"
@@ -24,10 +25,11 @@ func (dhtNode *DHTNode) startweb() {
 		r.ParseForm()
 		key := r.Form["key"][0]
 		value := r.Form["value"][0]
-		msgId := generateNodeId("upload" + dhtNode.BindAddress + r.Host)
-		dhtNode.Send2(msgId, "upload", dhtNode.BindAddress, "", key, value)
+		msgId := generateNodeId(time.Now().String() + r.Host)
+		dhtNode.Send2(msgId, "upload", dhtNode.BindAddress, "", generateNodeId(key), key+";"+value)
 		dhtNode.hashMap[msgId] = w
 		time.Sleep(500 * time.Millisecond)
+		fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
 		rw := dhtNode.hashMap[msgId]
 		if rw != nil {
 			w.WriteHeader(418)
