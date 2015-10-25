@@ -22,7 +22,7 @@ func (dhtNode *DHTNode) upload(key string, value string) {
 	if !exists(path) {
 		os.MkdirAll(path, 0777)
 	}
-	path = "storage/" + dhtNode.nodeId + "/" + key + ".txt"
+	path = "storage/" + dhtNode.nodeId + "/" + key
 	createFile(path, value)
 }
 

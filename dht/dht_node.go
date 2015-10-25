@@ -36,6 +36,8 @@ type DHTNode struct {
 	online          bool
 	lastStab        string
 	hashMap         map[string]http.ResponseWriter
+	fileMap         map[string]string
+	Connection      *net.UDPConn
 }
 
 type VNode struct {
@@ -55,6 +57,7 @@ func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
 	//dhtNode.transport = CreateTransport(dhtNode, ip+":"+port)
 	dhtNode.BindAddress = BindAddress
 	dhtNode.queue = make(chan *DHTMsg)
+	dhtNode.Connection = nil
 	//No ID? Let's generate one.
 	dhtNode.nodeId = generateNodeId(BindAddress)
 	// if nodeId == nil {
@@ -71,6 +74,7 @@ func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
 	// fmt.Println("Node: " + BindAddress)
 	dhtNode.online = false
 	dhtNode.hashMap = make(map[string]http.ResponseWriter)
+	dhtNode.fileMap = make(map[string]string)
 	return dhtNode
 }
 

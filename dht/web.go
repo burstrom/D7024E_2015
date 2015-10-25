@@ -13,6 +13,7 @@ import (
 
 func (dhtNode *DHTNode) startweb() {
 	fmt.Println("Node #" + dhtNode.nodeId + " , started listening to : " + dhtNode.BindAddress)
+	timeoutValue := 1000
 	// Instantiate a new router
 	r := httprouter.New()
 	dhtNodeIP := dhtNode.BindAddress
@@ -28,39 +29,58 @@ func (dhtNode *DHTNode) startweb() {
 		msgId := generateNodeId(time.Now().String() + r.Host)
 		dhtNode.Send2(msgId, "upload", dhtNode.BindAddress, "", generateNodeId(key), key+";"+value)
 		dhtNode.hashMap[msgId] = w
-		time.Sleep(500 * time.Millisecond)
-		fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
+		time.Sleep(timeoutValue * time.Millisecond)
+		// fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
 		rw := dhtNode.hashMap[msgId]
 		if rw != nil {
 			w.WriteHeader(418)
-			fmt.Fprint(w, "Couldn't upload file, an error occured")
+			fmt.Fprint(w, "Couldn't upload file, TIMEOUT")
 		}
 	})
 
 	r.GET("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		// key := p.ByName("key")
-		// dhtNode.get(w, key)
+		r.ParseForm()
+		key := p.ByName("key")
+		msgId := generateNodeId(time.Now().String() + r.Host)
+		dhtNode.Send2(msgId, "fetch", dhtNode.BindAddress, "", generateNodeId(key), key)
+		dhtNode.hashMap[msgId] = w
+		time.Sleep(timeoutValue * time.Millisecond)
+		// fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
+		rw := dhtNode.hashMap[msgId]
+		if rw != nil {
+			w.WriteHeader(418)
+			fmt.Fprint(w, "Couldn't get file, TIMEOUT")
+		}
 	})
 
 	r.PUT("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		r.ParseForm()
-		// key := p.ByName("key")
-		// value := r.Form["value"][0]
-		//dhtNode.lookup(CreateMsg("lookup", dhtNode.nodeId, dhtNode.BindAddress, generateNodeId(key), ""))
-		fmt.Fprint(w, "This should return the payload of the key!\n")
-		// dhtNode.hashMap(key[value])
-		// for {
-		// select {
-		// case httpresponse := <-dhtNode.httpResponse:
-		// fmt.Println(httpresponse)
-		// stringlist := string.Split(httpresponse, ",")
-		// }
-		// }
+		key := p.ByName("key")
+		value := r.Form["value"][0]
+		msgId := generateNodeId(time.Now().String() + r.Host)
+		dhtNode.Send2(msgId, "update", dhtNode.BindAddress, "", generateNodeId(key), key+";;"+value)
+		dhtNode.hashMap[msgId] = w
+		time.Sleep(timeoutValue * time.Millisecond)
+		rw := dhtNode.hashMap[msgId]
+		if rw != nil {
+			w.WriteHeader(418)
+			fmt.Fprint(w, "Couldn't update file, TIMEOUT")
+		} // fmt.Fprint(w, "This should return the payload of the key!\n")
 	})
 
 	r.DELETE("/storage/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		r.ParseForm()
 		key := p.ByName("key")
-		dhtNode.delete(key)
+		msgId := generateNodeId(time.Now().String() + r.Host)
+		dhtNode.Send2(msgId, "delete", dhtNode.BindAddress, "", generateNodeId(key), key)
+		dhtNode.hashMap[msgId] = w
+		time.Sleep(timeoutValue * time.Millisecond)
+		// fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
+		rw := dhtNode.hashMap[msgId]
+		if rw != nil {
+			w.WriteHeader(418)
+			fmt.Fprint(w, "Couldn't delete file, TIMEOUT")
+		}
 	})
 
 	r.POST("/kill", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

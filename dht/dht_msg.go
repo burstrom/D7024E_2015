@@ -3,7 +3,9 @@ package dht
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
 	// "net/http"
 	"strings"
 	"time" // added time method
@@ -59,11 +61,102 @@ func (node *DHTNode) handler() {
 				// node.joinRing(msg)
 				// msg.Data = "join"
 				node.lookup(msg)
-			case "update":
-				node.updateNode(msg)
+			// case "update":
+			// node.updateNode(msg)
 			case "lookup":
-				// msg.Data = "lookup"
 				node.lookup(msg)
+			case "delete-forced":
+				if msg.Src == node.Predecessor.BindAddress {
+					path := "storage/" + node.nodeId + "/" + msg.Data
+					err := os.Remove(path)
+					_ = err
+				} else {
+					//Not correct predecessor, should never happen
+					node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+				}
+			case "delete":
+				if node.responsible(msg.Key) {
+					// This code is only accessed if you contact the correct node directly.
+					path := "storage/" + node.nodeId + "/" + msg.Data
+					// filedata := []byte(msg.Data[1])
+					err := os.Remove(path)
+					if err != nil {
+						delete(node.fileMap, msg.Data)
+						node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
+						return
+					}
+					node.Send("delete-forced", node.Successor.BindAddress, "", msg.Key, msg.Data)
+					node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+					return
+				} else {
+					node.lookup(msg)
+				}
+			case "deleteResponse":
+				w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+				if w != nil {
+					w.WriteHeader(302)
+					fmt.Fprint(w, msg.Src+"/"+msg.Key+"\n"+msg.Data)
+					delete(node.hashMap, msg.MsgId)
+				} else {
+					Warnln("Got fetchResponse but no message in hashmap?")
+				}
+			case "update-forced":
+				if msg.Src == node.Predecessor.BindAddress {
+					data := strings.Split(msg.Data, ";;")
+					path := "storage/" + node.nodeId + "/" + data[0]
+					err := ioutil.WriteFile(path, []byte(data[1]), 0644)
+					_ = err
+				} else {
+					//Not correct predecessor, should never happen
+					node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+				}
+			case "update":
+				if node.responsible(msg.Key) {
+					// This code is only accessed if you contact the correct node directly.
+					data := strings.Split(msg.Data, ";;")
+					path := "storage/" + node.nodeId + "/" + data[0]
+					// filedata := []byte(msg.Data[1])
+					err := ioutil.WriteFile(path, []byte(data[1]), 0644)
+					if err != nil || len(data) < 2 {
+						node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
+						return
+					}
+					node.Send("update-forced", node.Successor.BindAddress, "", msg.Key, msg.Data)
+					node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", data[0], msg.Data)
+				} else {
+					node.lookup(msg)
+				}
+			case "updateResponse":
+				w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+				if w != nil {
+					w.WriteHeader(302)
+					fmt.Fprint(w, msg.Src+"/"+msg.Key+"\n"+msg.Data)
+					delete(node.hashMap, msg.MsgId)
+				} else {
+					Warnln("Got fetchResponse but no message in hashmap?")
+				}
+			case "fetch":
+				if node.responsible(msg.Key) {
+					// This code is only accessed if you contact the correct node directly.
+					path := "storage/" + node.nodeId + "/" + msg.Data
+					bytestring, err := ioutil.ReadFile(path)
+					if err == nil {
+						node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, string(bytestring))
+					} else {
+						node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, err.Error())
+					}
+				} else {
+					node.lookup(msg)
+				}
+			case "fetchResponse":
+				w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+				if w != nil {
+					w.WriteHeader(302)
+					fmt.Fprint(w, msg.Src+"/"+msg.Key+"\n"+msg.Data)
+					delete(node.hashMap, msg.MsgId)
+				} else {
+					Warnln("Got fetchResponse but no message in hashmap?")
+				}
 			case "upload":
 				fmt.Println("\n", msg)
 				fmt.Println("\n -> " + node.BindAddress)
@@ -202,6 +295,7 @@ func (node *DHTNode) listen() {
 	udpAddr, err := net.ResolveUDPAddr("udp", node.BindAddress)
 	conn, err := net.ListenUDP("udp", udpAddr)
 	node.online = true
+	node.Connection = conn
 	defer conn.Close()
 	if err != nil {
 		fmt.Println(err.Error())
