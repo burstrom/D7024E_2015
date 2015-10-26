@@ -22,15 +22,13 @@ func main() {
 	node := dht.MakeDHTNode(nil, os.Args[1])
 	wg.Add(1)
 	go node.StartServer(&wg)
-	go node.Send("join", "localhost:1110", "", "", "")
+	go node.Send("join", "0.0.0.0:1110", "", "", "")
 	for {
 	time.Sleep(time.Second)
 	runtime.Gosched()
 	go node.PrintAll()	
 	}	
-		
-	
-	
-	
-	
 }
+
+
+
