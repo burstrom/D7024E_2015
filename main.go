@@ -22,7 +22,8 @@ func main() {
 	node := dht.MakeDHTNode(nil, os.Args[1])
 	wg.Add(1)
 	go node.StartServer(&wg)
-	go node.Send("join", "172.17.42.1:1110", "", "", "")
+	if (
+	go node.Send("join",os.Args[2], "", "", "")
 	for {
 	time.Sleep(time.Second)
 	runtime.Gosched()
