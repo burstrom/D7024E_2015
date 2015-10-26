@@ -28,7 +28,7 @@ func (dhtNode *DHTNode) startweb() {
 		key := r.Form["key"][0]
 		value := r.Form["value"][0]
 		msgId := generateNodeId(time.Now().String() + r.Host)
-		dhtNode.Send2(msgId, "upload", dhtNode.BindAddress, "", generateNodeId(key), key+";"+value)
+		dhtNode.Send(msgId, "upload", dhtNode.BindAddress, "", generateNodeId(key), key+";"+value)
 		dhtNode.hashMap[msgId] = w
 		time.Sleep(timeoutValue * time.Millisecond)
 		// fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
@@ -43,7 +43,7 @@ func (dhtNode *DHTNode) startweb() {
 		r.ParseForm()
 		key := p.ByName("key")
 		msgId := generateNodeId(time.Now().String() + r.Host)
-		dhtNode.Send2(msgId, "fetch", dhtNode.BindAddress, "", generateNodeId(key), key)
+		dhtNode.Send(msgId, "fetch", dhtNode.BindAddress, "", generateNodeId(key), key)
 		dhtNode.hashMap[msgId] = w
 		time.Sleep(timeoutValue * time.Millisecond)
 		// fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
@@ -59,7 +59,7 @@ func (dhtNode *DHTNode) startweb() {
 		key := p.ByName("key")
 		value := r.Form["value"][0]
 		msgId := generateNodeId(time.Now().String() + r.Host)
-		dhtNode.Send2(msgId, "update", dhtNode.BindAddress, "", generateNodeId(key), key+";;"+value)
+		dhtNode.Send(msgId, "update", dhtNode.BindAddress, "", generateNodeId(key), key+";;"+value)
 		dhtNode.hashMap[msgId] = w
 		time.Sleep(timeoutValue * time.Millisecond)
 		rw := dhtNode.hashMap[msgId]
@@ -73,7 +73,7 @@ func (dhtNode *DHTNode) startweb() {
 		r.ParseForm()
 		key := p.ByName("key")
 		msgId := generateNodeId(time.Now().String() + r.Host)
-		dhtNode.Send2(msgId, "delete", dhtNode.BindAddress, "", generateNodeId(key), key)
+		dhtNode.Send(msgId, "delete", dhtNode.BindAddress, "", generateNodeId(key), key)
 		dhtNode.hashMap[msgId] = w
 		time.Sleep(timeoutValue * time.Millisecond)
 		// fmt.Println("\n ## " + msgId + " -> " + dhtNode.BindAddress + " with data: " + key + "," + value)
@@ -90,35 +90,47 @@ func (dhtNode *DHTNode) startweb() {
 		// value := r.Form["value"][0]
 		// dhtNode.put(key, value)
 		fmt.Fprintln(w, "Killed node "+dhtNode.BindAddress)
-		go dhtNode.Connection.Close()
 		dhtNode.online = false
+		// dhtNode.Send("", "kill", dhtNode.BindAddress, "", "", "")
+
+		// go dhtNode.Connection.Close()
 	})
 
-	r.POST("/start", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	r.POST("/exit", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		// r.ParseForm()
+		// key := r.Form["key"][0]
+		// value := r.Form["value"][0]
+		// dhtNode.put(key, value)
+		// fmt.Fprintln(w, "Killed node "+dhtNode.BindAddress)
+		// go dhtNode.Connection.Close()
+		dhtNode.Send("", "exit", dhtNode.BindAddress, "", "", "")
+	})
+
+	r.POST("/restart", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		// r.ParseForm()
 		// key := r.Form["key"][0]
 		// value := r.Form["value"][0]
 		// dhtNode.put(key, value)
 		fmt.Fprintln(w, "Started node "+dhtNode.BindAddress)
-		go dhtNode.listen()
+		dhtNode.Send("", "restart", dhtNode.BindAddress, "", "", "")
 	})
 
 	r.POST("/stabilizedata", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		r.ParseForm()
-		dhtNode.Send("stabilizeData", dhtNode.BindAddress, "", "", "")
+		dhtNode.Send("", "stabilizeData", dhtNode.BindAddress, "", "", "")
 		fmt.Fprintln(w, "newPredecessor method")
 	})
 
 	r.POST("/clonedata", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		r.ParseForm()
-		dhtNode.Send("cloneData", dhtNode.BindAddress, "", "", "")
+		dhtNode.Send("", "cloneData", dhtNode.BindAddress, "", "", "")
 		fmt.Fprintln(w, "newPredecessor method")
 	})
 
 	r.POST("/join/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		r.ParseForm()
 		key := p.ByName("key")
-		dhtNode.Send("join", key, "", "", "")
+		dhtNode.Send("", "join", key, "", "", "")
 		fmt.Fprintln(w, "Joining with node: "+key)
 	})
 

@@ -22,6 +22,14 @@ func Noticeln(s string) {
 	Notice(s + "\n")
 }
 
+func Head(s string) {
+	Green := color.New(color.Bold, color.FgCyan).PrintFunc()
+	Green(s)
+}
+func Headln(s string) {
+	Head(s + "\n")
+}
+
 func Info(s string) {
 	Info := color.New(color.Bold, color.FgMagenta).PrintFunc()
 	Info(s)

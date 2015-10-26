@@ -69,19 +69,19 @@ func TestNet1(t *testing.T) {
 	// go node[7].startweb()
 
 	// fmt.Println("All nodes joining eachother!")
-	node[1].Send("join", node[0].BindAddress, "", "", "")
+	node[1].Send("", "join", node[0].BindAddress, "", "", "")
 	time.Sleep(150 * time.Millisecond)
-	node[2].Send("join", node[0].BindAddress, "", "", "")
+	node[2].Send("", "join", node[0].BindAddress, "", "", "")
 	time.Sleep(150 * time.Millisecond)
-	node[3].Send("join", node[0].BindAddress, "", "", "")
+	node[3].Send("", "join", node[0].BindAddress, "", "", "")
 	time.Sleep(150 * time.Millisecond)
-	// node[4].Send("join", node[0].BindAddress, "", "", "")
+	// node[4].Send("","join", node[0].BindAddress, "", "", "")
 	// time.Sleep(150 * time.Millisecond)
-	// node[5].Send("join", node[0].BindAddress, "", "", "")
+	// node[5].Send("","join", node[0].BindAddress, "", "", "")
 	// time.Sleep(150 * time.Millisecond)
-	// node[6].Send("join", node[0].BindAddress, "", "", "")
+	// node[6].Send("","join", node[0].BindAddress, "", "", "")
 	// time.Sleep(150 * time.Millisecond)
-	// node[7].Send("join", node[0].BindAddress, "", "", "")
+	// node[7].Send("","join", node[0].BindAddress, "", "", "")
 	time.Sleep(450 * time.Millisecond)
 	// go node[1].printAll()
 	time.Sleep(200 * time.Millisecond)
@@ -121,19 +121,41 @@ func TestNet1(t *testing.T) {
 	// node[1].Send("lookup", node[1].BindAddress, "", "50", "")
 	//Keeps the web servers alive
 	for {
-		Error("\nPre \t\t Cur \t\t Suc\t\t\t")
+		Warn("\nStatus\t\tPre \t\t Cur \t\t Suc\t\t")
 		Warnln("Fingers")
+		// text := ""
 		for i := 0; i < 8; i++ {
-			if node[i].Predecessor == nil && node[i].Successor == nil {
-				Notice("\tnil\t- " + node[i].BindAddress + " - nil -\t-")
-			} else if node[i].Predecessor == nil {
-				Notice("\tnil\t- " + node[i].BindAddress + " - " + node[i].Successor.BindAddress)
-			} else if node[i].Successor == nil {
-				Notice(node[i].Predecessor.BindAddress + "\t- " + node[i].BindAddress + " -\t nil")
+			// text = ""
+			if node[i].online {
+				Notice("[ONLINE]\t")
 			} else {
-				Notice(node[i].Predecessor.BindAddress + "\t- " + node[i].BindAddress + " - " + node[i].Successor.BindAddress)
+				Error("[OFFLINE]\t")
 			}
-			Warn("\t" + node[i].FingersToString() + "\n")
+			if node[i].Predecessor != nil {
+				Head(node[i].Predecessor.BindAddress + "\t")
+			} else {
+				Error("\tnil\t")
+			}
+			Head(node[i].BindAddress + "\t")
+			if node[i].Successor != nil {
+				Head(node[i].Successor.BindAddress + "\t")
+			} else {
+				Error("\tnil\t")
+			}
+
+			fingers := node[i].FingersToString()
+			if fingers == "" {
+				Error("nil\t")
+			} else {
+				Notice(fingers + "\t")
+			}
+			successorList := node[i].SuccessorListToString()
+			if successorList == "[ ]" {
+				Warn("nil\n")
+			} else {
+				Head(successorList + "\n")
+			}
+
 			time.Sleep(20 * time.Millisecond)
 		}
 		time.Sleep(time.Millisecond * 5000)

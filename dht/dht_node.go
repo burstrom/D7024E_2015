@@ -27,9 +27,10 @@ import (
 var counter = 0
 
 type DHTNode struct {
-	nodeId      string
-	Successor   *DHTNode
-	Predecessor *DHTNode
+	nodeId        string
+	Successor     *DHTNode
+	SuccessorList [3]*DHTNode
+	Predecessor   *DHTNode
 	// Added manually:
 	fingers         [bits]*VNode
 	BindAddress     string
@@ -37,7 +38,7 @@ type DHTNode struct {
 	FingerResponses int
 	online          bool
 	hashMap         map[string]http.ResponseWriter
-	fileMap         map[string]string
+	waitQueue       map[string]string
 	Connection      *net.UDPConn
 	path            string
 }
@@ -47,6 +48,8 @@ type VNode struct {
 	BindAddress string
 	fingerIndex int
 }
+
+// type
 
 func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
 	dhtNode := new(DHTNode)
@@ -59,7 +62,7 @@ func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
 	dhtNode.FingerResponses = 0
 	dhtNode.online = false
 	dhtNode.hashMap = make(map[string]http.ResponseWriter)
-	dhtNode.fileMap = make(map[string]string)
+	dhtNode.waitQueue = make(map[string]string)
 	vPath := strings.Split(BindAddress, ":")
 	dhtNode.path = "storage/" + vPath[1] + "/"
 	return dhtNode
@@ -77,6 +80,7 @@ func (dhtNode *DHTNode) StartServer(wg *sync.WaitGroup) {
 	go dhtNode.handler()
 	go dhtNode.startweb()
 	go dhtNode.timerSomething()
+	go dhtNode.heartBeat()
 	dhtNode.listen()
 }
 
@@ -98,7 +102,7 @@ func (node *DHTNode) printQuery(msg *DHTMsg) {
 	Infoln(node.Predecessor.BindAddress + " - " + node.BindAddress + " - " + node.Successor.BindAddress)
 	if msg.Origin != node.BindAddress {
 		// msg.Data = msg.Data + node.Predecessor.BindAddress + "\t" + node.BindAddress + "\t" + node.Successor.BindAddress + "\t\n"
-		node.Send("printAll", node.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		node.Send("", "printAll", node.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 	}
 }
 
@@ -108,7 +112,7 @@ Then it Sends a response to the origin node with its own ID, Binddress (in the d
 func (dhtNode *DHTNode) fingerQuery(msg *DHTMsg) {
 	if dhtNode.responsible(msg.Key) {
 		// fmt.Println(dhtNode.nodeId + " is responsible for :" + msg.Key)
-		go dhtNode.Send("fingerResponse", msg.Origin, "", "", msg.Data)
+		go dhtNode.Send("", "fingerResponse", msg.Origin, "", "", msg.Data)
 	} else if dhtNode.BindAddress != msg.Origin {
 		// Framtiden köra en accelerated forward?
 		// fmt.Println(dhtNode.nodeId + " isn't responsible for : " + msg.Key)
@@ -142,7 +146,7 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 
 		dhtNode.Predecessor = newDHTNode
 		dhtNode.Successor = newDHTNode
-		dhtNode.Send("update", newDHTNode.BindAddress, "", "", dhtNode.nodeId+";"+dhtNode.BindAddress)
+		dhtNode.Send("", "update", newDHTNode.BindAddress, "", "", dhtNode.nodeId+";"+dhtNode.BindAddress)
 		// Infoln("[JOIN]\t" + dhtNode.Predecessor.nodeId + "\t" + dhtNode.nodeId + "\t" + dhtNode.Successor.nodeId)
 
 	} else {
@@ -154,15 +158,15 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 
 			dhtNode.Successor = newDHTNode
 			// Update Successor node (only Predecessor)
-			newDHTNode.Send("update", newDHTNode.Successor.BindAddress, "", "", "")
+			newDHTNode.Send("", "update", newDHTNode.Successor.BindAddress, "", "", "")
 
 			// Update the new nodes value, with dhtNode as Predecessor and the data-string as Successor
-			dhtNode.Send("update", newDHTNode.BindAddress, "", "", newDHTNode.Successor.nodeId+";"+newDHTNode.Successor.BindAddress)
+			dhtNode.Send("", "update", newDHTNode.BindAddress, "", "", newDHTNode.Successor.nodeId+";"+newDHTNode.Successor.BindAddress)
 			// Infoln("[JOIN]\t" + dhtNode.Predecessor.nodeId + "\t" + dhtNode.nodeId + "\t" + dhtNode.Successor.nodeId)
 			// fmt.Println("#" + dhtNode.BindAddress + " - join- " + msg.Key)
 		} else {
 			// TODO: use fingers if the fingertable is updated/setup?
-			newDHTNode.Send("join", dhtNode.Successor.BindAddress, "", "", "")
+			newDHTNode.Send("", "join", dhtNode.Successor.BindAddress, "", "", "")
 		}
 	}
 	// Create a call or something to update fingertables??
@@ -175,7 +179,7 @@ func (dhtNode *DHTNode) joinRing(msg *DHTMsg) {
 func (dhtNode *DHTNode) printAll() {
 	if dhtNode.Successor != nil {
 		Infoln("Pre \t\t Cur \t\t Suc")
-		dhtNode.Send("printAll", dhtNode.Successor.BindAddress, "", "", "")
+		dhtNode.Send("", "printAll", dhtNode.Successor.BindAddress, "", "", "")
 	}
 
 }
@@ -183,16 +187,16 @@ func (dhtNode *DHTNode) printAll() {
 func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 	// fmt.Println(dhtNode.BindAddress + " got lookup of type: " + requestType + " from " + msg.Src)
 	if dhtNode.Predecessor != nil && dhtNode.Predecessor.nodeId == msg.Key {
-		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Predecessor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send(msg.MsgId, msg.Req, dhtNode.Predecessor.BindAddress, msg.Origin, msg.Key, msg.Data)
 		return
 	}
 
 	if (dhtNode.nodeId == msg.Key) || (dhtNode.Predecessor == nil && dhtNode.Successor == nil) {
-		dhtNode.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+		dhtNode.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
 		if msg.Req == "upload" {
 			data := strings.Split(msg.Data, ";")
 			dhtNode.upload(dhtNode.path+"root/", data[0], data[1])
-			dhtNode.Send("replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
+			dhtNode.Send("", "replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
 		}
 		return
 	}
@@ -200,34 +204,34 @@ func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 	// If the key is equal to its prdecessor
 
 	if dhtNode.Predecessor != nil && between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) { // if the key is between the nodes Predecessor and itself.
-		dhtNode.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+		dhtNode.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
 		if msg.Req == "upload" {
 			data := strings.Split(msg.Data, ";")
 			dhtNode.upload(dhtNode.path+"root/", data[0], data[1])
-			dhtNode.Send("replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
+			dhtNode.Send("", "replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
 		}
 		return
 	}
 	if between([]byte(dhtNode.nodeId), []byte(dhtNode.Successor.nodeId), []byte(msg.Key)) {
-		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 		return
 	}
 	if dhtNode.FingerResponses != bits {
-		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 	} else if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[bits-1].nodeId), []byte(msg.Key)) {
 		// fmt.Println(dhtNode.nodeId + " got from: " + msg.Src + " with key: " + msg.Key)
 		for k := bits - 1; k >= 0; k-- {
 			if dhtNode.fingers[k] == nil {
 
 			} else if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[k].nodeId), []byte(msg.Key)) == false {
-				dhtNode.Send(msg.Req, dhtNode.fingers[k].BindAddress, msg.Origin, msg.Key, msg.Data)
+				dhtNode.Send("", msg.Req, dhtNode.fingers[k].BindAddress, msg.Origin, msg.Key, msg.Data)
 				return
 			}
 		}
-		go dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
+		go dhtNode.Send(msg.MsgId, msg.Req, dhtNode.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 
 	} else {
-		dhtNode.Send2(msg.MsgId, msg.Req, dhtNode.fingers[len(dhtNode.fingers)-1].BindAddress, msg.Origin, msg.Key, msg.Data)
+		dhtNode.Send(msg.MsgId, msg.Req, dhtNode.fingers[len(dhtNode.fingers)-1].BindAddress, msg.Origin, msg.Key, msg.Data)
 	}
 
 }
@@ -249,6 +253,17 @@ func (dhtNode *DHTNode) FingersToString() string {
 	// return returnval
 }
 
+func (node *DHTNode) SuccessorListToString() string {
+	output := "["
+	for k := 0; k < len(node.SuccessorList); k++ {
+		temp := node.SuccessorList[k]
+		if temp != nil {
+			output += " " + temp.BindAddress
+		}
+	}
+	return output + " ]"
+}
+
 func (dhtNode *DHTNode) setupFingers() {
 	// fmt.Println("From node " + dhtNode.nodeId)
 	//kString := ""
@@ -264,7 +279,7 @@ func (dhtNode *DHTNode) setupFingers() {
 		// time.Sleep(50 * time.Millisecond)
 		// fmt.Println(idBytes, " finger search for "+kstr)
 		if dhtNode.Successor != nil {
-			dhtNode.Send("fingerQuery", dhtNode.Successor.BindAddress, "", fingerHex, kstr)
+			dhtNode.Send("", "fingerQuery", dhtNode.Successor.BindAddress, "", fingerHex, kstr)
 		}
 
 	}
@@ -272,7 +287,7 @@ func (dhtNode *DHTNode) setupFingers() {
 
 }
 
-func (dhtNode *DHTNode) Send2(msgId, req, dst, origin, key, data string) {
+func (dhtNode *DHTNode) Send(msgId, req, dst, origin, key, data string) {
 	// If the origin is empty, then it becomes the DHTNodes bind adress since it was the one who sent the first.
 	/*if req == "LookupResponse" {
 		fmt.Println("dst: " + dst + ", origin: " + origin + ", key: " + key + ", data: " + data)
@@ -284,7 +299,9 @@ func (dhtNode *DHTNode) Send2(msgId, req, dst, origin, key, data string) {
 		origin = dhtNode.BindAddress
 	}
 	msg := CreateMsg(req, dhtNode.BindAddress, origin, key, data)
-	msg.MsgId = msgId
+	if msgId != "" {
+		msg.MsgId = msgId
+	}
 
 	udpAddr, err := net.ResolveUDPAddr("udp", dst)
 	conn, err := net.DialUDP("udp", nil, udpAddr)
@@ -296,11 +313,8 @@ func (dhtNode *DHTNode) Send2(msgId, req, dst, origin, key, data string) {
 	_, err = conn.Write(res) // wat?
 }
 
-func (dhtNode *DHTNode) Send(req, dst, origin, key, data string) {
+/*func (dhtNode *DHTNode) Send(req, dst, origin, key, data string) {
 	// If the origin is empty, then it becomes the DHTNodes bind adress since it was the one who sent the first.
-	/*if req == "LookupResponse" {
-		fmt.Println("dst: " + dst + ", origin: " + origin + ", key: " + key + ", data: " + data)
-	}*/
 
 	if key == "" {
 		key = dhtNode.nodeId
@@ -318,26 +332,13 @@ func (dhtNode *DHTNode) Send(req, dst, origin, key, data string) {
 	}
 	res, _ := json.Marshal(msg)
 	_, err = conn.Write(res) // wat?
-}
+}*/
 
 // Forwards the message from the origin node (which is sent in the data file)
 func (dhtNode *DHTNode) SendFrwd(msg *DHTMsg, dstNode *DHTNode) {
 	msg.Src = dhtNode.BindAddress
-	dhtNode.Send(msg.Req, dstNode.BindAddress, msg.Origin, msg.Key, msg.Data)
+	dhtNode.Send(msg.MsgId, msg.Req, dstNode.BindAddress, msg.Origin, msg.Key, msg.Data)
 }
-
-// func (dhtNode *DHTNode) printFingers() string {
-// 	output := "{"
-// 	fingerList := string[bits]
-// 	finger := dhtNode.fingers[0]
-// 	for k := 0; k < bits; k++ {
-// 		finger = dhtNode.fingers[k]
-// 		// output = output + "," + finger.nodeId + " " + finger.BindAddress
-// 		fingerList[k] = finger.BindAddress
-// 	}
-// 	output = dhtNode.nodeId + ": " + output + "}"
-// 	return output
-// }
 
 func (dhtNode *DHTNode) responsible(key string) bool {
 	// key == dhtnode?
@@ -387,7 +388,7 @@ func (node *DHTNode) cleanupRoot() {
 func (node *DHTNode) joinResponse(msg *DHTMsg) {
 	node.Predecessor = nil
 	node.Successor = MakeDHTNode(&msg.Key, msg.Src)
-	node.Send("notify", node.Successor.BindAddress, "", "", "")
+	node.Send("", "notify", node.Successor.BindAddress, "", "", "")
 }
 
 func (node *DHTNode) stabilizeData() {
@@ -398,11 +399,11 @@ func (node *DHTNode) stabilizeData() {
 		hashedvalue := generateNodeId(f.Name())
 		bytestring, err2 := ioutil.ReadFile(node.path + "root/" + f.Name())
 		_ = err2
-		node.Send("upload", node.Predecessor.BindAddress, "", hashedvalue, f.Name()+";"+string(bytestring))
+		node.Send("", "upload", node.Predecessor.BindAddress, "", hashedvalue, f.Name()+";"+string(bytestring))
 		// Send the file. and delete it locally (OR) send it to its new clone folder?
 	}
 	time.Sleep(50 * time.Duration(len(files)) * time.Millisecond)
-	node.Send("cleanupRoot", node.Successor.BindAddress, "", "", "")
+	node.Send("", "cleanupRoot", node.Successor.BindAddress, "", "", "")
 	// Clones all the nodes data to it's successor
 }
 
@@ -414,7 +415,7 @@ func (node *DHTNode) cloneData() {
 		// fmt.Println("predecessor is responsible for the file")
 		bytestring, err2 := ioutil.ReadFile(node.path + "root/" + f.Name())
 		_ = err2
-		node.Send("uploadForced", node.Successor.BindAddress, "", hashedvalue, f.Name()+";"+string(bytestring))
+		node.Send("", "uploadForced", node.Successor.BindAddress, "", hashedvalue, f.Name()+";"+string(bytestring))
 	}
 }
 
@@ -425,7 +426,7 @@ func (node *DHTNode) deleteForced(msg *DHTMsg) {
 		_ = err
 	} else {
 		//Not correct predecessor, should never happen
-		node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+		// node.Send("", "stabilize", node.Predecessor.BindAddress, "", "", "")
 	}
 }
 
@@ -436,12 +437,12 @@ func (node *DHTNode) deleteFile(msg *DHTMsg) {
 		// filedata := []byte(msg.Data[1])
 		err := os.Remove(path)
 		if err != nil {
-			delete(node.fileMap, msg.Data)
-			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
+			delete(node.hashMap, msg.Data)
+			node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
 			return
 		}
-		node.Send("deleteForced", node.Successor.BindAddress, "", msg.Key, msg.Data)
-		node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+		node.Send("", "deleteForced", node.Successor.BindAddress, "", msg.Key, msg.Data)
+		node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
 		return
 	} else {
 		node.lookup(msg)
@@ -467,7 +468,7 @@ func (node *DHTNode) updateForced(msg *DHTMsg) {
 		_ = err
 	} else {
 		//Not correct predecessor, should never happen
-		node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+		// node.Send("", "stabilize", node.Predecessor.BindAddress, "", "", "")
 	}
 }
 
@@ -479,11 +480,11 @@ func (node *DHTNode) update(msg *DHTMsg) {
 		// filedata := []byte(msg.Data[1])
 		err := ioutil.WriteFile(path, []byte(data[1]), 0644)
 		if err != nil || len(data) < 2 {
-			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
+			node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
 			return
 		}
-		node.Send("updateForced", node.Successor.BindAddress, "", msg.Key, msg.Data)
-		node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", data[0], msg.Data)
+		node.Send("", "updateForced", node.Successor.BindAddress, "", msg.Key, msg.Data)
+		node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", data[0], msg.Data)
 	} else {
 		node.lookup(msg)
 	}
@@ -506,9 +507,9 @@ func (node *DHTNode) fetch(msg *DHTMsg) {
 		path := node.path + "root/" + msg.Data
 		bytestring, err := ioutil.ReadFile(path)
 		if err == nil {
-			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, string(bytestring))
+			node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, string(bytestring))
 		} else {
-			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, err.Error())
+			node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, err.Error())
 		}
 	} else {
 		node.lookup(msg)
@@ -539,9 +540,9 @@ func (node *DHTNode) uploadHandler(msg *DHTMsg) {
 		}
 		node.upload(node.path+"root/", data[0], filedata)
 		fmt.Println("\n Filename: " + data[0] + "\n" + data[1])
-		node.Send("uploadForced", node.Successor.BindAddress, node.BindAddress, msg.Key, msg.Data)
+		node.Send("", "uploadForced", node.Successor.BindAddress, node.BindAddress, msg.Key, msg.Data)
 		if msg.Origin != node.Successor.BindAddress || msg.Origin == node.BindAddress {
-			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+			node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
 		}
 	} else {
 		if msg.Origin != node.Successor.BindAddress {
@@ -578,7 +579,7 @@ func (node *DHTNode) uploadForced(msg *DHTMsg) {
 		// node.upload(msg.Key, msg.Data)
 	} else {
 		//Not correct predecessor, should never happen
-		node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+		// node.Send("", "stabilize", node.Predecessor.BindAddress, "", "", "")
 	}
 }
 
@@ -592,11 +593,14 @@ func (node *DHTNode) notifyResponse(msg *DHTMsg) {
 }
 
 func (dhtNode *DHTNode) getPredecessor(msg *DHTMsg) {
-	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.BindAddress)
+	// if msg.Src == dhtNode.BindAddress {
+	// 	return
+	// }
+	// fmt.Println("msgID1 " + msg.MsgId )
 	if dhtNode.Predecessor == nil {
-		dhtNode.Send("StabilizeResponse", msg.Origin, "", "", "")
+		dhtNode.Send(msg.MsgId, "StabilizeResponse", msg.Origin, "", "", "")
 	} else {
-		dhtNode.Send("StabilizeResponse", msg.Origin, "", dhtNode.Predecessor.nodeId, dhtNode.Predecessor.BindAddress)
+		dhtNode.Send(msg.MsgId, "StabilizeResponse", msg.Origin, "", dhtNode.Predecessor.nodeId, dhtNode.Predecessor.BindAddress)
 	}
 
 }
@@ -610,28 +614,91 @@ func (dhtNode *DHTNode) StabilizeResponse(msg *DHTMsg) {
 	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.BindAddress)
 	// src := dhtNode.BindAddress
 	// key := strings.Split(msg.Data, ";")
-	if (between([]byte(dhtNode.nodeId), []byte(dhtNode.Successor.nodeId), []byte(msg.Key)) && dhtNode.nodeId != msg.Key) || msg.Key == "" {
-
-		// temp := strings.Split(msg.Data, ";")
+	_, exists := dhtNode.waitQueue[msg.MsgId]
+	// fmt.Println("DELETED :" + msg.MsgId)
+	/*if msg.Key == "NaN" {
 		dhtNode.Successor.nodeId = msg.Key
 		dhtNode.Successor.BindAddress = msg.Data
 
-	} else {
-		// fmt.Println(node0)
-		dhtNode.Send("getPredecessor", msg.Data, "", "", "")
+		dhtNode.Send("", "notify", dhtNode.Successor.BindAddress, "", "", "")
+	}*/
+	if exists {
+		delete(dhtNode.waitQueue, msg.MsgId)
+		if (between([]byte(dhtNode.nodeId), []byte(dhtNode.Successor.nodeId), []byte(msg.Key)) && dhtNode.nodeId != msg.Key) || msg.Key == "" {
+
+			// temp := strings.Split(msg.Data, ";")
+			dhtNode.Successor.nodeId = msg.Key
+			dhtNode.Successor.BindAddress = msg.Data
+
+		} /*else {
+			// fmt.Println(node0)
+			dhtNode.Send(msg.MsgId, "getPredecessor", msg.Data, "", "", "")
+		}*/
+		dhtNode.Send("", "notify", dhtNode.Successor.BindAddress, "", "", "")
 	}
-	dhtNode.Send("notify", dhtNode.Successor.BindAddress, "", "", "")
+
 	// dhtNode.Send("notify", dhtNode.Successor.BindAddress, dhtNode.Successor.nodeId+";"+dhtNode.Successor.BindAddress)
 
 }
+
+/*
+func (node *DHTNode) stabilize(msg *DHTMsg) {
+	if node.Successor != nil && node.online {
+		timestamp := generateNodeId(node.nodeId + time.Now().String())
+		node.waitQueue[timestamp] = timestamp
+		index := 0
+		tempNode := node.Successor.BindAddress
+		if msg.Data != "" {
+			index, _ = strconv.Atoi(msg.Data)
+			if index < 3 && node.SuccessorList[index] != nil {
+				tempNode = node.SuccessorList[index].BindAddress
+			}
+		}
+		go node.Send(timestamp, "getPredecessor", tempNode, "", "", "")
+		time.Sleep(100 * time.Millisecond)
+		_, err := node.waitQueue[timestamp]
+		if err == false && index < 3 {
+			delete(node.waitQueue, timestamp)
+			newIndex := strconv.Itoa(index + 1)
+			fmt.Println("Node: " + node.BindAddress + " sending a new stabilize " + newIndex)
+			go node.Send("", "stabilize", node.BindAddress, "", "", newIndex)
+		}
+	}
+}*/
+
 func (dhtNode *DHTNode) stabilize(msg *DHTMsg) {
+	// index, _ := strconv.Atoi(msg.Data)
+	if dhtNode.Successor == nil {
+		return
+	}
+	// fmt.Println("msgID STAB" + msg.MsgId)
+	// tempSuccessor := dhtNode.Successor.BindAddress
+	hashvalue := generateNodeId(dhtNode.nodeId + "stabilize" + time.Now().String())
+	dhtNode.waitQueue[hashvalue] = hashvalue
+	// fmt.Println("stabilize for " + dhtNode.BindAddress)
+	// If the stabilize has looped so it should check its next finger..
+	dhtNode.Send(hashvalue, "getPredecessor", dhtNode.Successor.BindAddress, "", "", "")
 	// fmt.Println(dhtNode.BindAddress + " stabilize, Successor : " + dhtNode.Successor.BindAddress)
-	dhtNode.Send("getPredecessor", dhtNode.Successor.BindAddress, "", "", "")
+
+	time.Sleep(250 * time.Millisecond)
 	// dhtNode.lastStab = dhtNode.Successor.BindAddress
-	// time.Sleep(50 * time.Millisecond)
-	// if dhtNode.lastStab != "" {
-	// redo the stabilize but for the next Successor in the succerlist.
-	// }
+	_, exists := dhtNode.waitQueue[hashvalue]
+
+	if exists {
+		for i := 0; i < 3; i++ {
+			if dhtNode.SuccessorList[i] != nil {
+				dhtNode.Send(msg.MsgId, "notify", dhtNode.SuccessorList[i].BindAddress, "", "", "")
+			}
+		}
+		// fmt.Println(dhtNode.BindAddress + " val: " + val)
+		// delete(dhtNode.waitQueue, hashvalue)
+		// delete(dhtNode.waitQueue, hashvalue)
+		// if index < len(dhtNode.SuccessorList) {
+		// dhtNode.Send("", "stabilize", dhtNode.BindAddress, "", "", strconv.Itoa(index+1))
+		// }
+
+		// dhtNode.Successor = nil // since it didn't get a response in the given time...
+	}
 }
 
 func (dhtNode *DHTNode) notify(msg *DHTMsg) {
@@ -647,15 +714,15 @@ func (dhtNode *DHTNode) notify(msg *DHTMsg) {
 			dhtNode.Successor = dhtNode.Predecessor
 		}
 
-		dhtNode.Send("notifyResponse", dhtNode.Predecessor.BindAddress, "", "", "")
+		dhtNode.Send("", "notifyResponse", dhtNode.Predecessor.BindAddress, "", "", "")
 		// Sends a response to the old predecessor. if it has beome changed.
 		if temp != nil {
 			// IF THERE WAS A CHANGE BETWEEN PREDECESSOR AND SUCH.
 			if temp.nodeId != dhtNode.Predecessor.nodeId {
 				// Triggers the step by step data stabilization.
-				dhtNode.Send("newPredecessorEvent", dhtNode.BindAddress, "", "", "")
+				dhtNode.Send("", "newPredecessorEvent", dhtNode.BindAddress, "", "", "")
 				// Informs the old predecessor that it should stabilize to find its new successor.
-				dhtNode.Send("PredQueryResponse", temp.BindAddress, "", "", dhtNode.Predecessor.nodeId+";"+dhtNode.Predecessor.BindAddress)
+				dhtNode.Send("", "PredQueryResponse", temp.BindAddress, "", "", dhtNode.Predecessor.nodeId+";"+dhtNode.Predecessor.BindAddress)
 			}
 
 		}
@@ -672,7 +739,7 @@ func (node *DHTNode) newPredecessor() {
 	for _, f := range files {
 		bytestring, err2 := ioutil.ReadFile(node.path + "clone/" + f.Name()) // Reads the file
 		_ = err2
-		node.Send("cloneReplication", node.Predecessor.BindAddress, "", "", f.Name()+";"+string(bytestring))
+		node.Send("", "cloneReplication", node.Predecessor.BindAddress, "", "", f.Name()+";"+string(bytestring))
 		// Send the file. and delete it locally (OR) send it to its new clone folder?
 
 	}
@@ -681,7 +748,7 @@ func (node *DHTNode) newPredecessor() {
 	if files != nil {
 		numberOfFiles = strconv.Itoa(len(files))
 	}
-	node.Send("cloneReplicationEOF", node.Predecessor.BindAddress, "", "", numberOfFiles)
+	node.Send("", "cloneReplicationEOF", node.Predecessor.BindAddress, "", "", numberOfFiles)
 	// Clones all the nodes data to it's successor
 }
 
@@ -699,21 +766,21 @@ func (node *DHTNode) cloneReplicationEOF(msg *DHTMsg) {
 	numberOfFiles, _ := strconv.Atoi(msg.Data)
 	if files != nil {
 		if len(files) != numberOfFiles { // Missing some files. resend all files again.
-			node.Send("newPredecessorEvent", node.Successor.BindAddress, "", "", "")
+			node.Send("", "newPredecessorEvent", node.Successor.BindAddress, "", "", "")
 			return
 		}
 	}
 	if node.Predecessor != nil {
-		node.Send("stabilizeData", node.Predecessor.BindAddress, "", "", "")
+		node.Send("", "stabilizeData", node.Predecessor.BindAddress, "", "", "")
 	}
 	// Returns that it is done with all the file downloads. now it can clear its clone folder. Potential problem: We should have a check for consistency in this case. (Before removing the folder on the successr, does the numbers still match?)
-	node.Send("cleanupClone", node.Successor.BindAddress, "", "", "")
+	node.Send("", "cleanupClone", node.Successor.BindAddress, "", "", "")
 }
 
 func (node *DHTNode) cleanupClone(msg *DHTMsg) {
 	os.RemoveAll(node.path + "clone/")
 	os.Mkdir(node.path+"clone/", 0755)
-	node.Send("stabilizeData", node.BindAddress, "", "", "")
+	node.Send("", "stabilizeData", node.BindAddress, "", "", "")
 }
 
 func (node *DHTNode) listen() {
@@ -729,16 +796,73 @@ func (node *DHTNode) listen() {
 	// fmt.Println("Started listening : " + node.bindAdress)
 	// Error("Started listening : " + node.BindAddress + "\n")
 	for {
-		if node.online {
-			msg := DHTMsg{}
-			err = dec.Decode(&msg)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			node.queue <- &msg
-		} else {
-			break
+		msg := DHTMsg{}
+		err = dec.Decode(&msg)
+		if err != nil {
+			fmt.Println(err.Error())
 		}
+		node.queue <- &msg
+	}
+}
+
+func (node *DHTNode) heartBeat() {
+	hashedMsgId := ""
+	for {
+		if node.Predecessor != nil && node.online {
+			Timestamp := time.Now().String()
+			hashedMsgId = generateNodeId(node.nodeId + Timestamp)
+			node.Send(hashedMsgId, "heartbeat", node.Predecessor.BindAddress, "", "", "")
+			node.waitQueue[hashedMsgId] = time.Now().String()
+
+			time.Sleep(2000 * time.Millisecond)
+			_, err := node.waitQueue[hashedMsgId]
+
+			if err && node.online {
+				// fmt.Println("Error for node " + node.BindAddress)
+				delete(node.waitQueue, hashedMsgId)
+				node.Predecessor = nil // since it didn't get a response in the given time...
+			}
+		} else {
+			time.Sleep(1000 * time.Millisecond)
+			// node.Send("", "stabilize", node.Predecessor.BindAddress, "", "", "")
+		}
+	}
+}
+
+func (node *DHTNode) heartBeatResponse(msg *DHTMsg) {
+	delete(node.waitQueue, msg.MsgId)
+}
+
+func (node *DHTNode) exit() {
+	os.Exit(0)
+	// node.Connection.Close()
+}
+
+func (node *DHTNode) successorSet(msg *DHTMsg) {
+	ttl, _ := strconv.Atoi(msg.Key)
+	if ttl > 0 {
+		ttl--
+		msg.Data += node.nodeId + "," + node.BindAddress + ";"
+		newK := strconv.Itoa(ttl)
+		node.Send(msg.MsgId, msg.Req, node.Successor.BindAddress, msg.Origin, newK, msg.Data)
+	} else {
+		node.Send(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", msg.Data+node.nodeId+","+node.BindAddress+";")
+	}
+}
+
+func (node *DHTNode) successorSetResponse(msg *DHTMsg) {
+	successors := strings.Split(msg.Data, ";")
+	k := 0
+	for _, succ := range successors {
+		if len(node.SuccessorList) > k {
+			data := strings.Split(succ, ",")
+			tempNode := MakeDHTNode(&data[0], data[1])
+
+			node.SuccessorList[k] = tempNode
+
+		}
+
+		k++
 	}
 }
 
@@ -747,15 +871,16 @@ func (node *DHTNode) timerSomething() {
 	for {
 		if node.Successor != nil {
 			// node.Send("notify", node.Successor.BindAddress, "", "", "")
-			node.Send("getPredecessor", node.Successor.BindAddress, "", "", "")
+			node.Send("", "stabilize", node.BindAddress, "", "", "")
+			if k == 3 {
+				node.Send("", "fingerSetup", node.BindAddress, "", "", "")
+				k = 0
+				node.Send("", "successorSet", node.Successor.BindAddress, "", "3", "")
+			}
 			// node.Send("cleanupRoot", node.BindAddress, "", "", "")
 			/*node.Send("PredQuery", node.Successor.BindAddress, "", "", node.nodeId+";"+node.BindAddress)*/
 		}
-		if k == 3 {
-			node.Send("fingerSetup", node.BindAddress, "", "", "")
-			k = 0
-		}
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(2000 * time.Millisecond)
 		k++
 	}
 }
