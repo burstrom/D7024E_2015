@@ -34,10 +34,10 @@ type DHTNode struct {
 	queue           chan *DHTMsg
 	FingerResponses int
 	online          bool
-	lastStab        string
 	hashMap         map[string]http.ResponseWriter
 	fileMap         map[string]string
 	Connection      *net.UDPConn
+	path            string
 }
 
 type VNode struct {
@@ -54,6 +54,7 @@ func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
 
 	// Defines the node, and adds the tuple values of IP and Port.
 	dhtNode := new(DHTNode)
+
 	//dhtNode.transport = CreateTransport(dhtNode, ip+":"+port)
 	dhtNode.BindAddress = BindAddress
 	dhtNode.queue = make(chan *DHTMsg)
@@ -75,6 +76,8 @@ func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
 	dhtNode.online = false
 	dhtNode.hashMap = make(map[string]http.ResponseWriter)
 	dhtNode.fileMap = make(map[string]string)
+	vPath := strings.Split(BindAddress, ":")
+	dhtNode.path = "storage/" + vPath[1] + "/"
 	return dhtNode
 }
 
@@ -222,7 +225,7 @@ func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 		dhtNode.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
 		if msg.Req == "upload" {
 			data := strings.Split(msg.Data, ";")
-			dhtNode.upload(data[0], data[1])
+			dhtNode.upload(dhtNode.path+"root/", data[0], data[1])
 			dhtNode.Send("replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
 		}
 		return
@@ -234,7 +237,7 @@ func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 		dhtNode.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
 		if msg.Req == "upload" {
 			data := strings.Split(msg.Data, ";")
-			dhtNode.upload(data[0], data[1])
+			dhtNode.upload(dhtNode.path+"root/", data[0], data[1])
 			dhtNode.Send("replicate", dhtNode.Successor.BindAddress, dhtNode.BindAddress, msg.Key, msg.Data)
 		}
 		return
@@ -435,6 +438,7 @@ func (node *DHTNode) timerSomething() {
 		if node.Successor != nil {
 			// node.Send("notify", node.Successor.BindAddress, "", "", "")
 			node.Send("getPredecessor", node.Successor.BindAddress, "", "", "")
+			node.Send("cleanupRoot", node.BindAddress, "", "", "")
 			/*node.Send("PredQuery", node.Successor.BindAddress, "", "", node.nodeId+";"+node.BindAddress)*/
 		}
 		if k == 3 {

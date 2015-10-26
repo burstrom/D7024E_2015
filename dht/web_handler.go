@@ -17,13 +17,13 @@ func exists(name string) bool {
 	return true
 }
 
-func (dhtNode *DHTNode) upload(key string, value string) {
-	path := "storage/" + dhtNode.nodeId + "/"
+func (dhtNode *DHTNode) upload(path, key, value string) {
+	// path := "storage/" + dhtNode.nodeId + "/"
 	if !exists(path) {
 		os.MkdirAll(path, 0777)
 	}
-	path = "storage/" + dhtNode.nodeId + "/" + key
-	createFile(path, value)
+	// path = "storage/" + dhtNode.nodeId + "/" + key
+	createFile(path+key, value)
 }
 
 func (dhtNode *DHTNode) get(w http.ResponseWriter, key string) {

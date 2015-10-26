@@ -6,6 +6,7 @@ import (
 	//"html/template"
 	"net/http"
 	// "strconv"
+	// "sync"
 	"time"
 	// Third party packages
 	"github.com/julienschmidt/httprouter"
@@ -13,7 +14,7 @@ import (
 
 func (dhtNode *DHTNode) startweb() {
 	fmt.Println("Node #" + dhtNode.nodeId + " , started listening to : " + dhtNode.BindAddress)
-	timeoutValue := 1000
+	timeoutValue := time.Duration(1000)
 	// Instantiate a new router
 	r := httprouter.New()
 	dhtNodeIP := dhtNode.BindAddress
@@ -84,11 +85,41 @@ func (dhtNode *DHTNode) startweb() {
 	})
 
 	r.POST("/kill", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		// r.ParseForm()
+		// key := r.Form["key"][0]
+		// value := r.Form["value"][0]
+		// dhtNode.put(key, value)
+		fmt.Fprintln(w, "Killed node "+dhtNode.BindAddress)
+		go dhtNode.Connection.Close()
+		dhtNode.online = false
+	})
+
+	r.POST("/start", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		// r.ParseForm()
+		// key := r.Form["key"][0]
+		// value := r.Form["value"][0]
+		// dhtNode.put(key, value)
+		fmt.Fprintln(w, "Started node "+dhtNode.BindAddress)
+		go dhtNode.listen()
+	})
+
+	r.POST("/stabilizedata", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		r.ParseForm()
-		key := r.Form["key"][0]
-		value := r.Form["value"][0]
-		dhtNode.put(key, value)
-		fmt.Fprintln(w, "Key:"+key+" Value:"+value)
+		dhtNode.Send("stabilizeData", dhtNode.BindAddress, "", "", "")
+		fmt.Fprintln(w, "newPredecessor method")
+	})
+
+	r.POST("/cloneData", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		r.ParseForm()
+		dhtNode.Send("cloneData", dhtNode.BindAddress, "", "", "")
+		fmt.Fprintln(w, "newPredecessor method")
+	})
+
+	r.POST("/join/:key", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		r.ParseForm()
+		key := p.ByName("key")
+		dhtNode.Send("join", key, "", "", "")
+		fmt.Fprintln(w, "Joining with node: "+key)
 	})
 
 	// Fire up the server
