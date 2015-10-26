@@ -7,7 +7,7 @@ import (
 	"time"
 	"runtime"
 	"os"
-	"bytes"
+	//"bytes"
 )
 
 func main() {
@@ -23,9 +23,9 @@ func main() {
 	node := dht.MakeDHTNode(nil, os.Args[1])
 	wg.Add(1)
 	go node.StartServer(&wg)
-	if (bytes.Compare([]byte(os.Args[1]),[]byte(os.Args[2]))!=0){		
-	go node.Send("join", os.Args[2] ,"", "", "")
-		}	
+	//if (bytes.Compare([]byte(os.Args[1]),[]byte(os.Args[2]))!=0){		
+	//go node.Send("join", os.Args[2] ,"", "", "")
+	//	}	
 	for {
 	time.Sleep(time.Second)
 	runtime.Gosched()
