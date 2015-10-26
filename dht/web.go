@@ -14,7 +14,7 @@ import (
 
 func (dhtNode *DHTNode) startweb() {
 	fmt.Println("Node #" + dhtNode.nodeId + " , started listening to : " + dhtNode.BindAddress)
-	timeoutValue := time.Duration(1000)
+	timeoutValue := time.Duration(2000)
 	// Instantiate a new router
 	r := httprouter.New()
 	dhtNodeIP := dhtNode.BindAddress
@@ -109,7 +109,7 @@ func (dhtNode *DHTNode) startweb() {
 		fmt.Fprintln(w, "newPredecessor method")
 	})
 
-	r.POST("/cloneData", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	r.POST("/clonedata", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		r.ParseForm()
 		dhtNode.Send("cloneData", dhtNode.BindAddress, "", "", "")
 		fmt.Fprintln(w, "newPredecessor method")

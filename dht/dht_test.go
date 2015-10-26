@@ -68,15 +68,15 @@ func TestNet1(t *testing.T) {
 	// go node[6].startweb()
 	// go node[7].startweb()
 
-	fmt.Println("All nodes joining eachother!")
+	// fmt.Println("All nodes joining eachother!")
 	node[1].Send("join", node[0].BindAddress, "", "", "")
 	time.Sleep(150 * time.Millisecond)
 	node[2].Send("join", node[0].BindAddress, "", "", "")
 	time.Sleep(150 * time.Millisecond)
 	node[3].Send("join", node[0].BindAddress, "", "", "")
 	time.Sleep(150 * time.Millisecond)
-	node[4].Send("join", node[0].BindAddress, "", "", "")
-	time.Sleep(150 * time.Millisecond)
+	// node[4].Send("join", node[0].BindAddress, "", "", "")
+	// time.Sleep(150 * time.Millisecond)
 	// node[5].Send("join", node[0].BindAddress, "", "", "")
 	// time.Sleep(150 * time.Millisecond)
 	// node[6].Send("join", node[0].BindAddress, "", "", "")
@@ -85,9 +85,9 @@ func TestNet1(t *testing.T) {
 	time.Sleep(450 * time.Millisecond)
 	// go node[1].printAll()
 	time.Sleep(200 * time.Millisecond)
-
+	// fmt.Println("All nodes joined!")
 	// Iterates and updates each nodes fingers.
-	fmt.Println("All nodes joined!")
+
 	// go node[0].setupFingers()
 	// fmt.Print("\nSetting up fingers: ")
 	for i := 0; i < 8; i++ {

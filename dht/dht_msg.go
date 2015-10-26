@@ -1,10 +1,10 @@
 package dht
 
 import (
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
 	// "io/ioutil"
-	"net"
+	// "net"
 	// "os"
 	// "net/http"
 	// "strings"
@@ -73,7 +73,7 @@ func (node *DHTNode) handler() {
 				node.cloneData()
 
 			// delete-forced is a method used by the predecessor, if its sent from another node then it doesn't do anything (well it returns a stabilize)
-			case "delete-forced":
+			case "deleteForced":
 				node.deleteForced(msg)
 
 			// Deletes the file if it exists, if it doesn't exist it returns the error as a "deleteResponse"
@@ -85,7 +85,7 @@ func (node *DHTNode) handler() {
 				node.deleteResponse(msg)
 
 			// Update-forced similar to the other forced methods. only runnable by the predecessor of the node
-			case "update-forced":
+			case "updateForced":
 				node.updateForced(msg)
 
 			// update/patch file, the node gets a request to update a files data (if it exists)
@@ -114,7 +114,7 @@ func (node *DHTNode) handler() {
 
 			// Replication which is sent from the nodes predecessor.
 			// if it is the predecessor it replicates the data
-			case "upload-forced":
+			case "uploadForced":
 				node.uploadForced(msg)
 
 			// This is used when updating fingers, fingerquery checks if the node is respnsible for given key or not.
@@ -141,6 +141,21 @@ func (node *DHTNode) handler() {
 			case "StabilizeResponse":
 				node.StabilizeResponse(msg)
 
+			// This method will send all the files in the clone directory to its new predecessor since it is the one who is responsible for that data now. Ending with <EOF> object and a number. which the new predecessor must respond to check if it matches (so that all files has been uploaded correctly)
+			case "newPredecessorEvent":
+				node.newPredecessor()
+
+			// This method catches all the files which is sent from its successor "newPredecessorEvent"
+			case "cloneReplication":
+				node.cloneReplication(msg)
+
+			// Last message which checks the amount of files so that all files got uploaded correctly (has a delay of 50ms*amount of files)
+			case "cloneReplicationEOF":
+				node.cloneReplicationEOF(msg)
+
+			case "cleanupClone":
+				node.cleanupClone(msg)
+
 			// Notify means that the msg.key (node) thinks it is this nodes predecessor
 			case "notify":
 				node.notify(msg)
@@ -158,98 +173,6 @@ func (node *DHTNode) handler() {
 				fmt.Println("Kill all connections/threads related to this node?")
 			}
 
-		}
-	}
-}
-func (dhtNode *DHTNode) getPredecessor(msg *DHTMsg) {
-	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.BindAddress)
-	if dhtNode.Predecessor == nil {
-		dhtNode.Send("StabilizeResponse", msg.Origin, "", "", "")
-	} else {
-		dhtNode.Send("StabilizeResponse", msg.Origin, "", dhtNode.Predecessor.nodeId, dhtNode.Predecessor.BindAddress)
-	}
-
-}
-
-func (dhtNode *DHTNode) StabilizeResponse(msg *DHTMsg) {
-	// dhtNode.lastStab = ""
-	// fmt.Println(msg)
-	/*if dhtNode.Predecessor == nil {
-		fmt.Println(dhtNode.BindAddress + " suc: " + dhtNode.Successor.BindAddress + " has Predecessor: " + msg.Data)
-	}*/
-	// fmt.Println("src " + msg.Src + " dst : " + dhtNode.BindAddress)
-	// src := dhtNode.BindAddress
-	// key := strings.Split(msg.Data, ";")
-	if (between([]byte(dhtNode.nodeId), []byte(dhtNode.Successor.nodeId), []byte(msg.Key)) && dhtNode.nodeId != msg.Key) || msg.Key == "" {
-
-		// temp := strings.Split(msg.Data, ";")
-		dhtNode.Successor.nodeId = msg.Key
-		dhtNode.Successor.BindAddress = msg.Data
-
-	} else {
-		// fmt.Println(node0)
-		dhtNode.Send("getPredecessor", msg.Data, "", "", "")
-	}
-	dhtNode.Send("notify", dhtNode.Successor.BindAddress, "", "", "")
-	// dhtNode.Send("notify", dhtNode.Successor.BindAddress, dhtNode.Successor.nodeId+";"+dhtNode.Successor.BindAddress)
-
-}
-func (dhtNode *DHTNode) stabilize(msg *DHTMsg) {
-	// fmt.Println(dhtNode.BindAddress + " stabilize, Successor : " + dhtNode.Successor.BindAddress)
-	dhtNode.Send("getPredecessor", dhtNode.Successor.BindAddress, "", "", "")
-	// dhtNode.lastStab = dhtNode.Successor.BindAddress
-	// time.Sleep(50 * time.Millisecond)
-	// if dhtNode.lastStab != "" {
-	// redo the stabilize but for the next Successor in the succerlist.
-	// }
-}
-
-func (dhtNode *DHTNode) notify(msg *DHTMsg) {
-	if dhtNode.Predecessor == nil || between([]byte(dhtNode.Predecessor.nodeId), []byte(dhtNode.nodeId), []byte(msg.Key)) {
-
-		// fmt.Println(dhtNode.nodeId + ".Notify(" + msg.Key + ")")
-
-		temp := dhtNode.Predecessor
-		dhtNode.Predecessor = MakeDHTNode(&msg.Key, msg.Src)
-		if dhtNode.Successor == nil {
-			dhtNode.Successor = dhtNode.Predecessor
-		}
-		dhtNode.Send("notifyResponse", dhtNode.Predecessor.BindAddress, "", "", "")
-
-		// time.Sleep(50 * time.Millisecond)
-		if temp != nil {
-			dhtNode.Send("PredQueryResponse", temp.BindAddress, "", "", dhtNode.Predecessor.nodeId+";"+dhtNode.Predecessor.BindAddress)
-		}
-		// temp := strings.Split(msg.Data, ";")
-		// dhtNode.Predecessor.nodeId = temp[0]
-		// dhtNode.Predecessor.BindAddress = temp[1]
-		// Notice(dhtNode.Predecessor.nodeId + "\t" + dhtNode.nodeId + "\t" + dhtNode.Successor.nodeId)
-	}
-	return
-}
-
-func (node *DHTNode) listen() {
-	udpAddr, err := net.ResolveUDPAddr("udp", node.BindAddress)
-	conn, err := net.ListenUDP("udp", udpAddr)
-	node.online = true
-	node.Connection = conn
-	defer conn.Close()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	dec := json.NewDecoder(conn)
-	// fmt.Println("Started listening : " + node.bindAdress)
-	// Error("Started listening : " + node.BindAddress + "\n")
-	for {
-		if node.online {
-			msg := DHTMsg{}
-			err = dec.Decode(&msg)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			node.queue <- &msg
-		} else {
-			break
 		}
 	}
 }
