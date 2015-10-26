@@ -77,11 +77,11 @@ func TestNet1(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 	node[4].Send("join", node[0].BindAddress, "", "", "")
 	time.Sleep(150 * time.Millisecond)
-	node[5].Send("join", node[0].BindAddress, "", "", "")
-	time.Sleep(150 * time.Millisecond)
-	node[6].Send("join", node[0].BindAddress, "", "", "")
-	time.Sleep(150 * time.Millisecond)
-	node[7].Send("join", node[0].BindAddress, "", "", "")
+	// node[5].Send("join", node[0].BindAddress, "", "", "")
+	// time.Sleep(150 * time.Millisecond)
+	// node[6].Send("join", node[0].BindAddress, "", "", "")
+	// time.Sleep(150 * time.Millisecond)
+	// node[7].Send("join", node[0].BindAddress, "", "", "")
 	time.Sleep(450 * time.Millisecond)
 	// go node[1].printAll()
 	time.Sleep(200 * time.Millisecond)
@@ -125,7 +125,7 @@ func TestNet1(t *testing.T) {
 		Warnln("Fingers")
 		for i := 0; i < 8; i++ {
 			if node[i].Predecessor == nil && node[i].Successor == nil {
-				Notice("\tnil\t- " + node[i].BindAddress + " - nil\t-")
+				Notice("\tnil\t- " + node[i].BindAddress + " - nil -\t-")
 			} else if node[i].Predecessor == nil {
 				Notice("\tnil\t- " + node[i].BindAddress + " - " + node[i].Successor.BindAddress)
 			} else if node[i].Successor == nil {
@@ -136,7 +136,7 @@ func TestNet1(t *testing.T) {
 			Warn("\t" + node[i].FingersToString() + "\n")
 			time.Sleep(20 * time.Millisecond)
 		}
-		time.Sleep(time.Millisecond * 4000)
+		time.Sleep(time.Millisecond * 5000)
 		// node[0].printAll()
 	}
 

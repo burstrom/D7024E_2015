@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,32 +49,14 @@ type VNode struct {
 }
 
 func MakeDHTNode(nodeId *string, BindAddress string) *DHTNode {
-	// Hash table
-	// I suspect we need something similar to this:
-	// hashMap[msg.Key] = msg.Data
-	// We then populate the hash table with all keys and values that exist in the Sky cloud.
-
-	// Defines the node, and adds the tuple values of IP and Port.
 	dhtNode := new(DHTNode)
-
-	//dhtNode.transport = CreateTransport(dhtNode, ip+":"+port)
 	dhtNode.BindAddress = BindAddress
 	dhtNode.queue = make(chan *DHTMsg)
 	dhtNode.Connection = nil
-	//No ID? Let's generate one.
 	dhtNode.nodeId = generateNodeId(BindAddress)
-	// if nodeId == nil {
-	// genNodeId := generateNodeId(*nodeId)
-	// dhtNode.nodeId = genNodeId
-	// } else {
-	// dhtNode.nodeId = *nodeId
-	// }
 	dhtNode.Successor = nil
 	dhtNode.Predecessor = nil
 	dhtNode.FingerResponses = 0
-	// Added manually:
-
-	// fmt.Println("Node: " + BindAddress)
 	dhtNode.online = false
 	dhtNode.hashMap = make(map[string]http.ResponseWriter)
 	dhtNode.fileMap = make(map[string]string)
@@ -116,12 +100,6 @@ func (node *DHTNode) printQuery(msg *DHTMsg) {
 		// msg.Data = msg.Data + node.Predecessor.BindAddress + "\t" + node.BindAddress + "\t" + node.Successor.BindAddress + "\t\n"
 		node.Send("printAll", node.Successor.BindAddress, msg.Origin, msg.Key, msg.Data)
 	}
-	// } else {
-	// str := "Pre.\tNode\tSucc.\n" + msg.Data + node.Predecessor.BindAddress + "\t" + node.BindAddress + "\t" + node.Successor.BindAddress + "\t\n"
-	// Noticeln(str)
-	//fmt.Print(str)
-	//fmt.Print(msg.Data+"\n"+node.Predecessor.nodeId+"\t"+node.nodeId+"\t"+node.Successor.nodeId+"\t"+fingers+"\n", "")
-	// }
 }
 
 /* 	When a node gets a finger query, it splits the data to get the origin node info and also which index value it should be pointed to.
@@ -202,18 +180,6 @@ func (dhtNode *DHTNode) printAll() {
 
 }
 
-/* Returns the node which is responsible for key as a Response
-Input MSG = {
-	Key = The key which is looked up,
-	Origin = Original Sender.
-	Data = Which type of lookup, is it for a join or normal lookup?
-}
-
-Response MSG = {
-	Key = Node's ID,
-	Data = Node bindadress.
-}
-*/
 func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 	// fmt.Println(dhtNode.BindAddress + " got lookup of type: " + requestType + " from " + msg.Src)
 	if dhtNode.Predecessor != nil && dhtNode.Predecessor.nodeId == msg.Key {
@@ -265,32 +231,6 @@ func (dhtNode *DHTNode) lookup(msg *DHTMsg) {
 	}
 
 }
-
-/*
-func (dhtNode *DHTNode) acceleratedLookupUsingFingers(key string) *DHTNode {
-	// If the node or it's Successor is responsible for the key?
-	// Uses fingers to achieve a logarithmic lookup instead of linear.
-
-	counter = counter + 1
-	if dhtNode.responsible(key) {
-		return dhtNode
-	}
-	fmt.Println("Is Successor responsible?")
-	if dhtNode.Successor.responsible(key) {
-		return dhtNode.Successor
-	}
-	// Is the key within the interval node1 - node1.fingers[last] ?
-	if between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-1].nodeId), []byte(key)) {
-		// if the key is within the interval, decrease the value k, check if the key still is in the interval?
-		for k := 1; k <= bits; k++ {
-			if !between([]byte(dhtNode.nodeId), []byte(dhtNode.fingers[len(dhtNode.fingers)-k].nodeId), []byte(key)) {
-				return dhtNode.fingers[len(dhtNode.fingers)-k].acceleratedLookupUsingFingers(key)
-			}
-		}
-	}
-	// If the key isn't within the interval, it must be within another interval calculated from the last finger of node1
-	return dhtNode.fingers[len(dhtNode.fingers)-1].acceleratedLookupUsingFingers(key)
-}*/
 
 // Prints all unique fingers
 func (dhtNode *DHTNode) FingersToString() string {
@@ -432,17 +372,233 @@ func removeDuplicatesUnordered(elements []string) []string {
 	return result
 }
 
+func (node *DHTNode) cleanupRoot() {
+	root, err := ioutil.ReadDir(node.path + "root/")
+	_ = err
+	for _, f := range root {
+		bytestring, _ := ioutil.ReadFile(node.path + "clone/" + f.Name())
+		if bytestring != nil {
+			err := os.Remove(node.path + "root/" + f.Name())
+			_ = err
+		}
+	}
+}
+
+func (node *DHTNode) joinResponse(msg *DHTMsg) {
+	if node.Successor != nil {
+		if msg.Origin != node.Successor.BindAddress {
+			fmt.Println("Node " + node.BindAddress + " got new successor " + msg.Src)
+			// node.Send("cloneData", node.BindAddress, "", "", "")
+		}
+	}
+
+	node.Predecessor = nil
+	node.Successor = MakeDHTNode(&msg.Key, msg.Src)
+	node.Send("notify", node.Successor.BindAddress, "", "", "")
+}
+
+func (node *DHTNode) stabilizeData() {
+
+	files, err := ioutil.ReadDir(node.path + "root/")
+	_ = err
+	for _, f := range files {
+		hashedvalue := generateNodeId(f.Name())
+		bytestring, err2 := ioutil.ReadFile(node.path + "root/" + f.Name())
+		_ = err2
+		node.Send("upload", node.Predecessor.BindAddress, "", hashedvalue, f.Name()+";"+string(bytestring))
+		// Send the file. and delete it locally (OR) send it to its new clone folder?
+
+		// time.Sleep(50 * time.Millisecond)
+	}
+	// Clones all the nodes data to it's successor
+}
+
+func (node *DHTNode) cloneData() {
+	files, err := ioutil.ReadDir(node.path + "root/")
+	_ = err
+	for _, f := range files {
+		hashedvalue := generateNodeId(f.Name())
+		// fmt.Println("predecessor is responsible for the file")
+		bytestring, err2 := ioutil.ReadFile(node.path + "root/" + f.Name())
+		_ = err2
+		node.Send("upload-forced", node.Successor.BindAddress, "", hashedvalue, f.Name()+";"+string(bytestring))
+	}
+}
+
+func (node *DHTNode) deleteForced(msg *DHTMsg) {
+	if msg.Src == node.Predecessor.BindAddress {
+		path := node.path + "clone/" + msg.Data
+		err := os.Remove(path)
+		_ = err
+	} else {
+		//Not correct predecessor, should never happen
+		node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+	}
+}
+
+func (node *DHTNode) deleteFile(msg *DHTMsg) {
+	if node.responsible(msg.Key) {
+		// This code is only accessed if you contact the correct node directly.
+		path := node.path + "root/" + msg.Data
+		// filedata := []byte(msg.Data[1])
+		err := os.Remove(path)
+		if err != nil {
+			delete(node.fileMap, msg.Data)
+			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
+			return
+		}
+		node.Send("delete-forced", node.Successor.BindAddress, "", msg.Key, msg.Data)
+		node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+		return
+	} else {
+		node.lookup(msg)
+	}
+}
+
+func (node *DHTNode) deleteResponse(msg *DHTMsg) {
+	w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+	if w != nil {
+		w.WriteHeader(302)
+		fmt.Fprint(w, msg.Src+"/"+msg.Key+"\n"+msg.Data)
+		delete(node.hashMap, msg.MsgId)
+	} else {
+		Warnln("Got fetchResponse but no message in hashmap?")
+	}
+}
+
+func (node *DHTNode) updateForced(msg *DHTMsg) {
+	if msg.Src == node.Predecessor.BindAddress {
+		data := strings.Split(msg.Data, ";;")
+		path := node.path + "clone/" + data[0]
+		err := ioutil.WriteFile(path, []byte(data[1]), 0644)
+		_ = err
+	} else {
+		//Not correct predecessor, should never happen
+		node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+	}
+}
+
+func (node *DHTNode) update(msg *DHTMsg) {
+	if node.responsible(msg.Key) {
+		// This code is only accessed if you contact the correct node directly.
+		data := strings.Split(msg.Data, ";;")
+		path := node.path + "root/" + data[0]
+		// filedata := []byte(msg.Data[1])
+		err := ioutil.WriteFile(path, []byte(data[1]), 0644)
+		if err != nil || len(data) < 2 {
+			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", "", err.Error())
+			return
+		}
+		node.Send("update-forced", node.Successor.BindAddress, "", msg.Key, msg.Data)
+		node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", data[0], msg.Data)
+	} else {
+		node.lookup(msg)
+	}
+}
+
+func (node *DHTNode) updateResponse(msg *DHTMsg) {
+	w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+	if w != nil {
+		w.WriteHeader(302)
+		fmt.Fprint(w, msg.Src+"/"+msg.Key+"\n"+msg.Data)
+		delete(node.hashMap, msg.MsgId)
+	} else {
+		Warnln("Got fetchResponse but no message in hashmap?")
+	}
+}
+
+func (node *DHTNode) fetch(msg *DHTMsg) {
+	if node.responsible(msg.Key) {
+		// This code is only accessed if you contact the correct node directly.
+		path := node.path + "root/" + msg.Data
+		bytestring, err := ioutil.ReadFile(path)
+		if err == nil {
+			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, string(bytestring))
+		} else {
+			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Data, err.Error())
+		}
+	} else {
+		node.lookup(msg)
+	}
+}
+
+func (node *DHTNode) fetchResponse(msg *DHTMsg) {
+	w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+	if w != nil {
+		w.WriteHeader(302)
+		fmt.Fprint(w, msg.Src+"/"+msg.Key+"\n"+msg.Data)
+		delete(node.hashMap, msg.MsgId)
+	} else {
+		Warnln("Got fetchResponse but no message in hashmap?")
+	}
+}
+
+func (node *DHTNode) uploadHandler(msg *DHTMsg) {
+	fmt.Println("\n", msg)
+	fmt.Println("\n -> " + node.BindAddress)
+	// hashedValue := generateNodeId(msg.Key)
+	if node.responsible(msg.Key) {
+		// This code is only accessed if you contact the correct node directly.
+		data := strings.Split(msg.Data, ";")
+		node.upload(node.path+"root/", data[0], data[1])
+		fmt.Println("\n Filename: " + data[0] + "\n" + data[1])
+		node.Send("upload-forced", node.Successor.BindAddress, node.BindAddress, msg.Key, msg.Data)
+		if msg.Origin != node.Successor.BindAddress {
+			node.Send2(msg.MsgId, msg.Req+"Response", msg.Origin, "", msg.Key, msg.Data)
+		}
+	} else {
+		if msg.Origin != node.Successor.BindAddress {
+			node.lookup(msg)
+		}
+	}
+}
+
+func (node *DHTNode) uploadResponse(msg *DHTMsg) {
+	w := node.hashMap[msg.MsgId] // Om w inte är null så är det responsewritern
+	if w != nil {
+		// fmt.Println("\nSending upload response!")
+		w.WriteHeader(302)
+		data := strings.Split(msg.Data, ";")
+		fmt.Fprint(w, "Uploaded on address "+msg.Src+"/"+data[0]+"\n")
+		// http.Redirect(w, http.Get)
+		delete(node.hashMap, msg.MsgId)
+	} else {
+		Warnln("Got uploadResponse but no message in hashmap?")
+	}
+}
+
+func (node *DHTNode) uploadForced(msg *DHTMsg) {
+	fmt.Println("Node: " + node.BindAddress + " forced upload")
+	if msg.Src == node.Predecessor.BindAddress {
+		data := strings.Split(msg.Data, ";")
+		// path+clone/ represents the cloned data path.
+		node.upload(node.path+"clone/", data[0], data[1])
+		// node.upload(msg.Key, msg.Data)
+	} else {
+		//Not correct predecessor, should never happen
+		node.Send("stabilize", node.Predecessor.BindAddress, "", "", "")
+	}
+}
+
+func (node *DHTNode) notifyResponse(msg *DHTMsg) {
+	// Warnln(node.BindAddress + " gets Successor " + msg.Src)
+	node.Successor = MakeDHTNode(&msg.Key, msg.Src)
+	// if node.Predecessor == nil {
+	// node.Predecessor = node.Successor
+	// }
+	// node.Successor = MakeDHTNode(&msg.Key, msg.Src)
+}
+
 func (node *DHTNode) timerSomething() {
 	k := 0
 	for {
 		if node.Successor != nil {
 			// node.Send("notify", node.Successor.BindAddress, "", "", "")
 			node.Send("getPredecessor", node.Successor.BindAddress, "", "", "")
-			node.Send("cleanupRoot", node.BindAddress, "", "", "")
+			// node.Send("cleanupRoot", node.BindAddress, "", "", "")
 			/*node.Send("PredQuery", node.Successor.BindAddress, "", "", node.nodeId+";"+node.BindAddress)*/
 		}
 		if k == 3 {
-			// Warnln("Timer reset...")
 			node.Send("fingerSetup", node.BindAddress, "", "", "")
 			k = 0
 		}
