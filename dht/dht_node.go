@@ -793,7 +793,7 @@ func (node *DHTNode) listen() {
 		fmt.Println(err.Error())
 	}
 	dec := json.NewDecoder(conn)
-	// fmt.Println("Started listening : " + node.bindAdress)
+	fmt.Println("Started listening : " + node.BindAddress)
 	// Error("Started listening : " + node.BindAddress + "\n")
 	for {
 		msg := DHTMsg{}

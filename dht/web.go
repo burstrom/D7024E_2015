@@ -166,6 +166,7 @@ func (dhtNode *DHTNode) startweb() {
 		} else {
 			dataValue += successorList + "\n"
 		}
+		time.Sleep(50 * time.Millisecond)
 		fmt.Fprintln(w, dataValue)
 	})
 
