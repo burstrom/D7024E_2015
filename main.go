@@ -1,8 +1,9 @@
-package dht
+package main
 
 import (
 	"fmt"
-	"github.com/burstrom/D7024E_2015/dht"
+	//"github.com/burstrom/D7024E_2015/dht"
+	"dht"
 	"sync"
 	"time"
 	"runtime"
@@ -27,9 +28,9 @@ func main() {
 	//go node.Send("join", os.Args[2] ,"", "", "")
 	//	}	
 	for {
-	time.Sleep(time.Second)
-	runtime.Gosched()
-	go node.PrintAll()	
+		time.Sleep(time.Second)
+		runtime.Gosched()
+		//go node.PrintAll()	
 	}	
 }
 

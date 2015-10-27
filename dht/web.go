@@ -134,6 +134,41 @@ func (dhtNode *DHTNode) startweb() {
 		fmt.Fprintln(w, "Joining with node: "+key)
 	})
 
+	r.GET("/getData", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		r.ParseForm()
+		dataValue := "\nStatus\t\tPre \t\t Cur \t\t Suc\t\t Fingers\n"
+		if dhtNode.online {
+			dataValue += "[ONLINE]\t"
+		} else {
+			dataValue += "[OFFLINE]\t"
+		}
+		if dhtNode.Predecessor != nil {
+			dataValue += dhtNode.Predecessor.BindAddress + "\t"
+		} else {
+			dataValue += "\tnil\t"
+		}
+		dataValue += dhtNode.BindAddress + "\t"
+		if dhtNode.Successor != nil {
+			dataValue += dhtNode.Successor.BindAddress + "\t"
+		} else {
+			dataValue += "\tnil\t"
+		}
+
+		fingers := dhtNode.FingersToString()
+		if fingers == "" {
+			dataValue += "nil\t"
+		} else {
+			dataValue += fingers + "\t"
+		}
+		successorList := dhtNode.SuccessorListToString()
+		if successorList == "[ ]" {
+			dataValue += "nil\n"
+		} else {
+			dataValue += successorList + "\n"
+		}
+		fmt.Fprintln(w, dataValue)
+	})
+
 	// Fire up the server
 	http.ListenAndServe(dhtNodeIP, r)
 }
