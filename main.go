@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/burstrom/D7024E_2015/dht"
 	// "dht"
-	// "os"
+	"os"
 	// "runtime"
 	"sync"
 	"time"
@@ -21,14 +21,14 @@ func main() {
 	dht.Notice("Notice ")
 	dht.Info("Info ")
 	dht.Warn("Warn \n")
-	// node := dht.MakeDHTNode(nil, os.Args[1])
-	node := dht.MakeDHTNode(nil, "localhost:1000")
+	node := dht.MakeDHTNode(nil, os.Args[1])
+	// node := dht.MakeDHTNode(nil, "localhost:1000")
 	wg.Add(1)
 	go node.StartServer(&wg)
 	wg.Wait()
 
 	//if (bytes.Compare([]byte(os.Args[1]),[]byte(os.Args[2]))!=0){
-	//go node.Send("join", os.Args[2] ,"", "", "")
+	go node.Send("", "join", "localhost:1110", "", "", "")
 	//	}
 	for {
 		time.Sleep(10 * time.Second)

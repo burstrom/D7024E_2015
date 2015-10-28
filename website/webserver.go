@@ -29,12 +29,12 @@ func createFile(path string, value string) {
 }
 
 func main() {
-	fs := http.FileServer(http.Dir("website"))
+	fs := http.FileServer(http.Dir(""))
 	out2, err2 := exec.Command("sh", "-c", "docker ps").Output()
 	if err2 != nil {
 		log.Printf(err2.Error())
 	}
-	createFile("website/data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out2))
+	createFile("./data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out2))
 	http.HandleFunc("/createContainer", func(w http.ResponseWriter, r *http.Request) {
 		port := r.FormValue("PORT")
 		_ = port
@@ -42,7 +42,7 @@ func main() {
 		// command := "docker run  -d -i -t -p " + port + ":" + port + " --net=host --name " + name + " burstrom/reposky localhost:" + port
 		// log.Println("sh", "-c", "docker run -d -i -t -p "+port+":"+port+" --net=host --name "+name+" burstrom/reposky", "localhost:"+port)
 		// cmd := exec.Command("sh -c " + command)
-		cmd := exec.Command("sh", "-c", "docker run -d -i -t -p "+port+":"+port+" --net=host --name "+name+" burstrom/reposky", "localhost:"+port)
+		cmd := exec.Command("sh", "-c", "docker run -d -i -t -p "+port+":"+port+" --net=host --name "+name+" burstrom/reposky localhost:"+port)
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
@@ -61,7 +61,7 @@ func main() {
 		if err2 != nil {
 			log.Printf(err2.Error())
 		}
-		createFile("website/data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out2))
+		createFile("./data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out2))
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)
 
 	})
@@ -90,7 +90,7 @@ func main() {
 		if err2 != nil {
 			log.Printf(err2.Error())
 		}
-		createFile("website/data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out2))
+		createFile("./data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out2))
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)
 	})
 	http.Handle("/", fs)
@@ -106,7 +106,7 @@ func updateOuput() {
 		if err != nil {
 			log.Printf(err.Error())
 		}
-		createFile("website/data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out))
+		createFile("./data/activeContainers", "Lastupdated:"+time.Now().String()+"\n"+string(out))
 
 	}
 }
