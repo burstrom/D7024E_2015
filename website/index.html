@@ -1,0 +1,39 @@
+<html lang="en">
+	<head>
+		<!-- All the used imports. -->
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="D7024E_2015">
+		<meta name="author" content="github.com/burstrom/D7024E_2015">
+		<!-- stylesheets. -->
+		<link rel="stylesheet" href="./bootstrap-3.3.5-dist/css/bootstrap.min.css">
+		<link rel="stylesheet" href="./css/D7024E.css">
+		<script src="/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+		<script src="/javascripts/D7024E.js" type="text/javascript"></script>
+		<title>Docker light-manager</title>
+	</head>
+	<body class="container">
+		<div class ="row container toprow">
+			<object class="col-md-12" type="text/plain" data="data/activeContainers" border="1" ></object>
+		</div>
+		<div class="row container botrow">
+				<div class="col-md-6 midcol colum">
+					<form action="/createContainer" method="post" accept-charset="utf-8">
+						<br>
+						<input class="col-md-3" type="text" name="NAME" value="" placeholder="NAME">
+						<input class="col-md-3" type="text" name="PORT" value="" placeholder="PORT">
+						<input type="submit" class="btn btn-success" value="ADD CONTAINER" />
+					</form>
+					<br>
+					<br>
+					<form action="/deleteContainer" method="post" accept-charset="utf-8">
+						<input type="text" name="CONTAINER_ID" value="" placeholder="IP-for master">
+						<input type="submit" class="btn btn-danger" value="DEL CONTAINER" />
+					</form>
+				</div>
+				<div class="col-md-6 rightcol colum">
+					.col-md-4
+				</div>
+		</div>
+	</body>
+</html>

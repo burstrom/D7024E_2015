@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	//"github.com/burstrom/D7024E_2015/dht"
-	"dht"
-	"os"
+	"github.com/burstrom/D7024E_2015/dht"
+	// "dht"
+	// "os"
 	// "runtime"
 	"sync"
 	"time"
@@ -21,7 +21,8 @@ func main() {
 	dht.Notice("Notice ")
 	dht.Info("Info ")
 	dht.Warn("Warn \n")
-	node := dht.MakeDHTNode(nil, os.Args[1])
+	// node := dht.MakeDHTNode(nil, os.Args[1])
+	node := dht.MakeDHTNode(nil, "localhost:1000")
 	wg.Add(1)
 	go node.StartServer(&wg)
 	wg.Wait()
